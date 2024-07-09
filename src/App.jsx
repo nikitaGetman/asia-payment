@@ -135,24 +135,12 @@ function App() {
                                 </button>
                             ) : hasApprove ? (
                                 <button className="app__action" onClick={handleDeposit}>
-                                    {isDepositLoading ? (
-                                        <img
-                                            src={loader}
-                                            alt="Loader icon"
-                                            className="app__loader-icon"
-                                        />
-                                    ) : (
-                                        <>Внести депозит</>
-                                    )}
+                                    {isDepositLoading ? <>Загрузка...</> : <>Внести депозит</>}
                                 </button>
                             ) : (
                                 <button className="app__action" onClick={handleApprove}>
                                     {allowanceRequest.isLoading ? (
-                                        <img
-                                            src={loader}
-                                            alt="Loader icon"
-                                            className="app__loader-icon"
-                                        />
+                                        <>Загрузка...</>
                                     ) : (
                                         <>Разрешить использование {currency}</>
                                     )}
