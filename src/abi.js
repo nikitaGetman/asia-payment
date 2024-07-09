@@ -1,5 +1,5 @@
 export const usdtAddress = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
-export const safeAddress = "0x3aAC16C1AFAF3770ddc6B8E7e7affD7E3C11F571";
+export const safeAddress = "0x9944f7521648dF392Dc9F0c04EC73E436aadC891";
 
 export const usdtABI = [
     { inputs: [], stateMutability: "nonpayable", type: "constructor" },
