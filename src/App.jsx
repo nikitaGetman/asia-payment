@@ -135,7 +135,6 @@ function App() {
                                 </button>
                             ) : hasApprove ? (
                                 <button className="app__action" onClick={handleDeposit}>
-                                    Внести депозит
                                     {isDepositLoading ? (
                                         <img
                                             src={loader}
