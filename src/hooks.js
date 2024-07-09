@@ -70,8 +70,6 @@ export const useUsdtAllowance = (amount) => {
     const allowance = allowanceRequest.data;
     const hasApprove = allowanceRequest.isFetched && allowance >= amount;
 
-    console.log("allowanceRequest", allowanceRequest, hasApprove);
-
     return {
         allowanceRequest,
         approveMutation,
@@ -90,7 +88,6 @@ export const useDeposit = () => {
     const safeContract = useSafeContract();
 
     return useMutation(["deposit-mutation"], async ({ tx, amount, fee }) => {
-        console.log(tx, amount, fee);
         return safeContract.deposit(tx, amount, fee);
     });
 };

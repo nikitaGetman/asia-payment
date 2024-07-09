@@ -75,7 +75,6 @@ function App() {
     const handleDeposit = useCallback(() => {
         setError(undefined);
         if (transactionId && amountBN && feePercentBN) {
-            console.log(BigInt(transactionId), amountBN, feePercentBN);
             depositAsync({ tx: BigInt(transactionId), amount: amountBN, fee: feePercentBN }).catch(
                 (err) => setError(getReadableError(err))
             );
@@ -137,6 +136,15 @@ function App() {
                             ) : hasApprove ? (
                                 <button className="app__action" onClick={handleDeposit}>
                                     Внести депозит
+                                    {isDepositLoading ? (
+                                        <img
+                                            src={loader}
+                                            alt="Loader icon"
+                                            className="app__loader-icon"
+                                        />
+                                    ) : (
+                                        <>Внести депозит</>
+                                    )}
                                 </button>
                             ) : (
                                 <button className="app__action" onClick={handleApprove}>
