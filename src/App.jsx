@@ -22,7 +22,6 @@ function App() {
     const [transactionId, setTransactionId] = useState();
 
     const amountBN = useMemo(() => BigInt((amount || 0) * 10 ** DECIMALS), [amount]);
-    const feePercentBN = useMemo(() => BigInt((feePercent || 0) * 10 ** DECIMALS), [feePercent]);
 
     const network = "Polygon Chain";
     const currency = "USDT";
@@ -36,11 +35,11 @@ function App() {
         if (!_amount || !_txId || !_fee) {
             setError("Не удалось корректно загрузить страницу");
         } else {
-            const feeUsd = (_amount * _fee) / PERCENT_DEL;
-            setAmount(_amount);
-            setFee(feeUsd);
-            setFeePercent(_fee);
             setTransactionId(_txId);
+            setAmount(_amount);
+            setFeePercent(_fee);
+            const feeUsd = (_amount * _fee) / PERCENT_DEL;
+            setFee(feeUsd);
         }
     }, []);
 
@@ -77,12 +76,14 @@ function App() {
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
-        if (transactionId && amountBN && feePercentBN) {
-            depositAsync({ tx: BigInt(transactionId), amount: amountBN, fee: feePercentBN }).catch(
-                (err) => setError(getReadableError(err))
-            );
+        if (transactionId !== undefined && amountBN !== undefined && feePercent !== undefined) {
+            depositAsync({
+                tx: BigInt(transactionId),
+                amount: amountBN,
+                fee: BigInt(feePercent),
+            }).catch((err) => setError(getReadableError(err)));
         }
-    }, [depositAsync, transactionId, amountBN, feePercentBN]);
+    }, [depositAsync, transactionId, amountBN, feePercent]);
 
     const handleOpenScan = useCallback((hash) => {
         if (hash) {
