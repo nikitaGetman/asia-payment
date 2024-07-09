@@ -28,19 +28,24 @@ function App() {
 
     useEffect(() => {
         const queryString = window.location.search;
-        const _amount = Number(getQueryParam(queryString, "amount"));
-        const _txId = Number(getQueryParam(queryString, "tx"));
-        const _fee = Number(getQueryParam(queryString, "fee"));
+        const props = getQueryParam(queryString, "props");
+        const parts = props.split(",");
 
-        if (!_amount || !_txId || !_fee) {
-            setError("Не удалось корректно загрузить страницу");
-        } else {
-            setTransactionId(_txId);
-            setAmount(_amount);
-            setFeePercent(_fee);
-            const feeUsd = (_amount * _fee) / PERCENT_DEL;
-            setFee(feeUsd);
+        if (parts.length === 3) {
+            const _txId = Number(parts[0]);
+            const _amount = Number(parts[1]);
+            const _fee = Number(parts[2]);
+
+            if (_amount && _txId && !isNaN(_fee)) {
+                setTransactionId(_txId);
+                setAmount(_amount);
+                setFeePercent(_fee);
+                const feeUsd = (_amount * _fee) / PERCENT_DEL;
+                setFee(feeUsd);
+                return;
+            }
         }
+        setError("Не удалось корректно загрузить страницу");
     }, []);
 
     const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
