@@ -11,7 +11,7 @@ export function getQueryParam(queryString, paramName) {
 
 export function getReadableError(error) {
     const errorString = error.toString();
-    if (errorString.includes("User rejected")) return "Транзакция отменена пользователем";
+    if (errorString.includes("rejected")) return "Транзакция отменена пользователем";
 
     if (errorString.includes("transfer amount exceeds balance"))
         return "Недостаточный баланс кошелька";
@@ -20,8 +20,7 @@ export function getReadableError(error) {
 
     console.warn("Unknown error: ", errorString);
 
-    const message = errorString.split("\n")[0];
-    return "Ошибка: " + message;
+    return `Ошибка`;
 }
 
 export const waitForTransaction = async (tx) => {

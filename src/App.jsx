@@ -69,7 +69,10 @@ function App() {
 
     const handleApprove = useCallback(() => {
         setError(undefined);
-        approveMutation.mutateAsync(amountBN).catch((err) => setError(getReadableError(err)));
+        approveMutation
+            .mutateAsync(amountBN)
+            .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
+            .catch((err) => setError(getReadableError(err)));
     }, [amountBN, approveMutation]);
 
     const handleDeposit = useCallback(() => {
@@ -139,7 +142,7 @@ function App() {
                                 </button>
                             ) : (
                                 <button className="app__action" onClick={handleApprove}>
-                                    {allowanceRequest.isLoading ? (
+                                    {allowanceRequest.isLoading || approveMutation.isLoading ? (
                                         <>Загрузка...</>
                                     ) : (
                                         <>Разрешить использование {currency}</>

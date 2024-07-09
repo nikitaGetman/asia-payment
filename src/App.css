@@ -157,16 +157,15 @@
 
 .app__loader {
     margin: 0 auto;
-    position: relative;
     background-color: #262a31;
     border-radius: 10px;
     width: 60px;
     height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .app__loader-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
     animation-name: spin;
     animation-duration: 1000ms;
     animation-iteration-count: infinite;
@@ -175,9 +174,9 @@
 
 @keyframes spin {
     from {
-        transform: translate(-50%, -50%) rotate(0deg);
+        transform: rotate(0deg);
     }
     to {
-        transform: translate(-50%, -50%) rotate(360deg);
+        transform: rotate(360deg);
     }
 }
