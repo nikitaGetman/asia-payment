@@ -59,6 +59,9 @@
 .app__value--accent {
     color: #dbff00;
 }
+.app__value--error {
+    color: red;
+}
 
 .app__text {
     color: #8e8e8e;

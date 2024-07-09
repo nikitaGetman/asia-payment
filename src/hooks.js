@@ -1,4 +1,11 @@
-import { useAccount, useContract, useProvider, useSigner } from "wagmi";
+import {
+    useAccount,
+    useContract,
+    useNetwork,
+    useProvider,
+    useSigner,
+    useSwitchNetwork,
+} from "wagmi";
 import { safeABI, safeAddress, usdtABI, usdtAddress } from "./abi";
 import { waitForTransaction } from "./utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,6 +53,8 @@ export const useUsdtAllowance = (amount) => {
     const { address, isConnected } = useAccount();
     const usdtContract = useUsdtContract();
     const queryClient = useQueryClient();
+    const { chain } = useNetwork();
+    const { chains, switchNetworkAsync } = useSwitchNetwork();
 
     const allowanceRequest = useQuery(
         [ALLOWANCE_REQUEST, amount.toString(), address],
@@ -58,6 +67,9 @@ export const useUsdtAllowance = (amount) => {
     const approveMutation = useMutation(
         ["approve-mutation"],
         async (_amount) => {
+            if (isConnected && chain?.unsupported) {
+                await switchNetworkAsync(chains[0].id);
+            }
             return usdtContract.approve(safeAddress, _amount);
         },
         {
@@ -86,8 +98,14 @@ export const useUsdtAllowance = (amount) => {
 
 export const useDeposit = () => {
     const safeContract = useSafeContract();
+    const { isConnected } = useAccount();
+    const { chain } = useNetwork();
+    const { chains, switchNetworkAsync } = useSwitchNetwork();
 
     return useMutation(["deposit-mutation"], async ({ tx, amount, fee }) => {
+        if (isConnected && chain?.unsupported) {
+            await switchNetworkAsync(chains[0].id);
+        }
         return safeContract.deposit(tx, amount, fee);
     });
 };

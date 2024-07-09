@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useConnect, useNetwork } from "wagmi";
 import { useDeposit, useUsdtAllowance } from "./hooks";
 import { getQueryParam, getReadableError } from "./utils";
+import { useSwitchNetworkToSupported } from "./useSwitchNetworkToSupported";
 import logo from "./assets/logo.svg";
 import ok from "./assets/ok.svg";
 import loader from "./assets/loader.svg";
@@ -24,9 +25,9 @@ function App() {
 
     const amountBN = useMemo(() => BigInt((amount || 0) * 10 ** DECIMALS), [amount]);
 
-    const network = "Polygon Chain";
     const currency = "USDT";
 
+    useSwitchNetworkToSupported();
     useEffect(() => {
         const queryString = window.location.search;
         const props = getQueryParam(queryString, "props");
@@ -131,7 +132,12 @@ function App() {
                         </div>
                         <div className="app__row">
                             <span className="app__label">Сеть:</span>
-                            <span className="app__value">{network}</span>
+
+                            <span
+                                className={chain?.unsupported ? "app__value--error" : "app__value"}
+                            >
+                                {chain?.unsupported ? "Некорректная сеть" : chain?.name}
+                            </span>
                         </div>
                         <div className="app__row">
                             <span className="app__label">Валюта к отправке:</span>
