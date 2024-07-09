@@ -20,7 +20,7 @@ export function getReadableError(error) {
 
     console.warn("Unknown error: ", errorString);
 
-    return `Ошибка`;
+    return errorString;
 }
 
 export const waitForTransaction = async (tx) => {
