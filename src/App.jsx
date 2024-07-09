@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useAccount, useConnect } from "wagmi";
+import { useAccount, useConnect, useNetwork } from "wagmi";
 import { useDeposit, useUsdtAllowance } from "./hooks";
 import { getQueryParam, getReadableError } from "./utils";
 import logo from "./assets/logo.svg";
@@ -12,6 +12,7 @@ import "./App.css";
 const DECIMALS = 6;
 const PERCENT_DEL = 1000;
 function App() {
+    const { chain } = useNetwork();
     const { isConnected } = useAccount();
     const { connect, connectors } = useConnect();
     const [error, setError] = useState();
@@ -104,6 +105,10 @@ function App() {
             <header className="app__header">
                 <img src={logo} alt="AsiA logo" />
             </header>
+
+            <div className="app__text">
+                {chain?.name} {chain?.id} {chain?.network} {chain?.unsupported}
+            </div>
 
             <div className="app__body">
                 <div className="app__info-wrapper">

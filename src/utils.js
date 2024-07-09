@@ -18,6 +18,8 @@ export function getReadableError(error) {
 
     if (errorString.includes("You cannot re-deposit!")) return "Нельзя повторно внести депозит";
 
+    if (errorString.includes("underlying network changed ")) return "Некорректная сеть";
+
     console.warn("Unknown error: ", errorString);
 
     return errorString;
