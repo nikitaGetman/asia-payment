@@ -22,7 +22,7 @@ export function getReadableError(error) {
 
     console.warn("Unknown error: ", errorString);
 
-    return errorString;
+    return "Ошибка";
 }
 
 export const waitForTransaction = async (tx) => {

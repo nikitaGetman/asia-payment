@@ -107,10 +107,6 @@ function App() {
                 <img src={logo} alt="AsiA logo" />
             </header>
 
-            <div className="app__text">
-                {chain?.name} {chain?.id} {chain?.network} {chain?.unsupported}
-            </div>
-
             <div className="app__body">
                 <div className="app__info-wrapper">
                     <section className="app__info">
