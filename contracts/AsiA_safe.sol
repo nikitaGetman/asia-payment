@@ -1,99 +1,11 @@
-/**
- *Submitted for verification at polygonscan.com on 2023-09-07
-*/
-
-// Sources flattened with hardhat v2.12.6 https://hardhat.org
-
-// File @openzeppelin/contracts/token/ERC20/IERC20.sol@v4.8.1
-
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
+pragma solidity ^0.8.11;
 
-pragma solidity ^0.8.17;
-
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP.
- */
-interface IERC20 {
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `to`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address to, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `from` to `to` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
-}
-
-
-pragma solidity ^0.8.17;
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 struct SafeDeposit {
+    address creator;
     uint256 amount;
     uint256 commission;
     bool exist;
@@ -101,8 +13,9 @@ struct SafeDeposit {
 }
 
 contract AsiA_safe {
+    using SafeERC20 for IERC20;
 
-    mapping (address => mapping (uint256 => SafeDeposit)) public deposits;
+    mapping(uint256 => SafeDeposit) public deposits;
 
     address public admin;
     address public commissionReceiver;
@@ -112,18 +25,17 @@ contract AsiA_safe {
 
     IERC20 public erc20Token;
 
-    modifier onlyAdmin {
+    modifier onlyAdmin() {
         require(admin == msg.sender, "Access allow only for owner!");
         _;
     }
-    
-    modifier onlyOracle {
+
+    modifier onlyOracle() {
         require(controllerOracle == msg.sender, "Access allow only for oracle!");
         _;
     }
 
-
-    constructor (address allowedTokenAddress) payable {
+    constructor(address allowedTokenAddress) payable {
         admin = msg.sender;
         erc20Token = IERC20(allowedTokenAddress);
         decimalsComission = 1000;
@@ -131,75 +43,93 @@ contract AsiA_safe {
 
     // USER FUNCTIONS
     function deposit(uint256 id, uint256 amount, uint256 commission) external {
-        require(amount != 0, "Amount must be greater than zero!");
-        require(id != 0, "ID must be greater than zero!");
-        require(!deposits[msg.sender][id].exist, "You cannot re-deposit!");
+        address creator = msg.sender;
 
-        require(erc20Token.transferFrom(msg.sender, address(this), amount), "Transfer not successfully!");
+        require(amount != 0, "Amount zero!");
+        require(id != 0, "ID zero!");
+        require(!deposits[id].exist, "Cannot re-deposit!");
+        require(creator != address(0), "Creator zero!");
 
-        deposits[msg.sender][id] = SafeDeposit({
-            amount: amount, 
-            commission: commission, 
-            exist: true, 
+        require(erc20Token.balanceOf(creator) >= amount, "Invalid balance!");
+        erc20Token.safeTransferFrom(creator, address(this), amount);
+
+        deposits[id] = SafeDeposit({
+            creator: creator,
+            amount: amount,
+            commission: commission,
+            exist: true,
             withdrawn: false
         });
 
-        emit Safe(address(erc20Token), msg.sender, id, amount, commission);
+        emit Safe(address(erc20Token), creator, id, amount, commission);
     }
 
     // ФУНКЦИЯ BACK - Возвращает обратно отправителю средства из депозита
-    function back(address creator, uint256 id, bool withComission) external onlyOracle {
-        require(creator != address(0), "Creator cannot be empty!");
-        require(id != 0, "ID cannot be empty!");
+    function back(uint256 id, bool withComission) external onlyOracle {
+        require(id != 0, "ID zero!");
 
-        SafeDeposit storage insideDeposit = deposits[creator][id];
+        SafeDeposit storage insideDeposit = deposits[id];
 
         require(insideDeposit.exist && !insideDeposit.withdrawn, "This deposit does not exist!");
 
         uint256 amount = insideDeposit.amount;
         uint256 comissionAmount = 0;
 
-        if (withComission){
-            comissionAmount = ((insideDeposit.commission * insideDeposit.amount) / decimalsComission);
+        if (withComission) {
+            comissionAmount =
+                (insideDeposit.amount * insideDeposit.commission) /
+                (insideDeposit.commission + decimalsComission);
             amount = amount - comissionAmount;
-            erc20Token.transfer(commissionReceiver, comissionAmount);
+            erc20Token.safeTransfer(commissionReceiver, comissionAmount);
         }
-        
-        require(erc20Token.balanceOf(address(this)) >= amount, "You cannot withdraw all tokens!");
 
-        erc20Token.transfer(creator, amount);
+        require(erc20Token.balanceOf(address(this)) >= amount, "Invalid balance!");
+        erc20Token.safeTransfer(insideDeposit.creator, amount);
 
         insideDeposit.withdrawn = true;
-        
-        emit Back(address(erc20Token), creator, id, insideDeposit.amount, insideDeposit.commission);
+
+        emit Back(
+            address(erc20Token),
+            insideDeposit.creator,
+            id,
+            insideDeposit.amount,
+            insideDeposit.commission
+        );
     }
 
     // ФУНКЦИЯ CORRECT - Возвращает одной из двух сторон средства если что-то пошло не так
-    function correct(address creator, uint256 id, address receiver, bool withComission) external onlyAdmin {
-        require(receiver != address(0), "Receiver cannot be empty!");
-        require(creator != address(0), "Creator cannot be empty!");
-        require(id != 0, "ID cannot be empty!");
+    function correct(uint256 id, address receiver, bool withComission) external onlyAdmin {
+        require(receiver != address(0), "Receiver zero!");
+        require(id != 0, "ID zero!");
 
-        SafeDeposit storage insideDeposit = deposits[creator][id];
+        SafeDeposit storage insideDeposit = deposits[id];
 
         require(insideDeposit.exist && !insideDeposit.withdrawn, "This deposit does not exist!");
 
         uint256 amount = insideDeposit.amount;
         uint256 comissionAmount = 0;
 
-        if (withComission){
-            comissionAmount = ((insideDeposit.commission * insideDeposit.amount) / decimalsComission);
+        if (withComission) {
+            comissionAmount =
+                (insideDeposit.amount * insideDeposit.commission) /
+                (insideDeposit.commission + decimalsComission);
             amount = amount - comissionAmount;
-            erc20Token.transfer(commissionReceiver, comissionAmount);
+            erc20Token.safeTransfer(commissionReceiver, comissionAmount);
         }
-        
-        require(erc20Token.balanceOf(address(this)) >= amount, "You cannot withdraw all tokens!");
 
-        erc20Token.transfer(receiver, amount);
-        
+        require(erc20Token.balanceOf(address(this)) >= amount, "Invalid balance!");
+        erc20Token.safeTransfer(receiver, amount);
+
         insideDeposit.withdrawn = true;
 
-        emit Correct(address(erc20Token), receiver, creator, id, insideDeposit.amount, insideDeposit.commission);
+        emit Correct(
+            address(erc20Token),
+            receiver,
+            insideDeposit.creator,
+            id,
+            insideDeposit.amount,
+            insideDeposit.commission
+        );
     }
 
     // ADMIN FUNCTIONS

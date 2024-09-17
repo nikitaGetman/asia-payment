@@ -19,11 +19,12 @@ function App() {
     const [error, setError] = useState();
 
     const [amount, setAmount] = useState();
+    const [amountWithFee, setAmountWithFee] = useState();
     const [fee, setFee] = useState();
     const [feePercent, setFeePercent] = useState();
     const [transactionId, setTransactionId] = useState();
 
-    const amountBN = useMemo(() => BigInt((amount || 0) * 10 ** DECIMALS), [amount]);
+    const amountBN = useMemo(() => BigInt((amountWithFee || 0) * 10 ** DECIMALS), [amount]);
 
     const currency = "USDT";
 
@@ -31,20 +32,26 @@ function App() {
     useEffect(() => {
         const queryString = window.location.search;
         const props = getQueryParam(queryString, "props");
-        const parts = props.split(",");
 
-        if (parts.length === 3) {
-            const _txId = Number(parts[0]);
-            const _amount = Number(parts[1]);
-            const _fee = Number(parts[2]);
+        if (props) {
+            const parts = props.split(",");
 
-            if (_amount && _txId && !isNaN(_fee)) {
-                setTransactionId(_txId);
-                setAmount(_amount);
-                setFeePercent(_fee);
-                const feeUsd = (_amount * _fee) / PERCENT_DEL;
-                setFee(feeUsd);
-                return;
+            if (parts.length === 3) {
+                const _txId = Number(parts[0]);
+                const _amount = Number(parts[1]);
+                const _fee = Number(parts[2]);
+
+                if (_amount && _txId && !isNaN(_fee)) {
+                    setTransactionId(_txId);
+                    setAmountWithFee(_amount);
+                    setFeePercent(_fee);
+
+                    const _amountWithoutFee = (_amount * PERCENT_DEL) / (PERCENT_DEL + _fee);
+                    setAmount(_amountWithoutFee);
+                    const feeUsd = Math.round((_amount - _amountWithoutFee) * 10_000) / 10_000;
+                    setFee(feeUsd);
+                    return;
+                }
             }
         }
         setError("Не удалось корректно загрузить страницу");

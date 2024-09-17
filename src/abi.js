@@ -1,5 +1,5 @@
 export const usdtAddress = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
-export const safeAddress = "0x9944f7521648dF392Dc9F0c04EC73E436aadC891";
+export const safeAddress = "0x2bFc9c26E1c077e36a9714F2265eB81875078B49";
 
 export const usdtABI = [
     { inputs: [], stateMutability: "nonpayable", type: "constructor" },
@@ -351,18 +351,49 @@ export const usdtABI = [
 
 export const safeABI = [
     {
-        inputs: [{ internalType: "address", name: "allowedTokenAddress", type: "address" }],
+        inputs: [
+            {
+                internalType: "address",
+                name: "allowedTokenAddress",
+                type: "address",
+            },
+        ],
         stateMutability: "payable",
         type: "constructor",
     },
     {
         anonymous: false,
         inputs: [
-            { indexed: false, internalType: "address", name: "ERC20_ADDRESS", type: "address" },
-            { indexed: true, internalType: "address", name: "receiver", type: "address" },
-            { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "commission", type: "uint256" },
+            {
+                indexed: false,
+                internalType: "address",
+                name: "ERC20_ADDRESS",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "address",
+                name: "receiver",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "uint256",
+                name: "id",
+                type: "uint256",
+            },
+            {
+                indexed: false,
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256",
+            },
+            {
+                indexed: false,
+                internalType: "uint256",
+                name: "commission",
+                type: "uint256",
+            },
         ],
         name: "Back",
         type: "event",
@@ -370,12 +401,42 @@ export const safeABI = [
     {
         anonymous: false,
         inputs: [
-            { indexed: false, internalType: "address", name: "ERC20_ADDRESS", type: "address" },
-            { indexed: true, internalType: "address", name: "receiver", type: "address" },
-            { indexed: true, internalType: "address", name: "creator", type: "address" },
-            { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "commission", type: "uint256" },
+            {
+                indexed: false,
+                internalType: "address",
+                name: "ERC20_ADDRESS",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "address",
+                name: "receiver",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "address",
+                name: "creator",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "uint256",
+                name: "id",
+                type: "uint256",
+            },
+            {
+                indexed: false,
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256",
+            },
+            {
+                indexed: false,
+                internalType: "uint256",
+                name: "commission",
+                type: "uint256",
+            },
         ],
         name: "Correct",
         type: "event",
@@ -383,11 +444,36 @@ export const safeABI = [
     {
         anonymous: false,
         inputs: [
-            { indexed: false, internalType: "address", name: "ERC20_ADDRESS", type: "address" },
-            { indexed: true, internalType: "address", name: "creator", type: "address" },
-            { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
-            { indexed: false, internalType: "uint256", name: "commission", type: "uint256" },
+            {
+                indexed: false,
+                internalType: "address",
+                name: "ERC20_ADDRESS",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "address",
+                name: "creator",
+                type: "address",
+            },
+            {
+                indexed: true,
+                internalType: "uint256",
+                name: "id",
+                type: "uint256",
+            },
+            {
+                indexed: false,
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256",
+            },
+            {
+                indexed: false,
+                internalType: "uint256",
+                name: "commission",
+                type: "uint256",
+            },
         ],
         name: "Safe",
         type: "event",
@@ -395,15 +481,28 @@ export const safeABI = [
     {
         inputs: [],
         name: "admin",
-        outputs: [{ internalType: "address", name: "", type: "address" }],
+        outputs: [
+            {
+                internalType: "address",
+                name: "",
+                type: "address",
+            },
+        ],
         stateMutability: "view",
         type: "function",
     },
     {
         inputs: [
-            { internalType: "address", name: "creator", type: "address" },
-            { internalType: "uint256", name: "id", type: "uint256" },
-            { internalType: "bool", name: "withComission", type: "bool" },
+            {
+                internalType: "uint256",
+                name: "id",
+                type: "uint256",
+            },
+            {
+                internalType: "bool",
+                name: "withComission",
+                type: "bool",
+            },
         ],
         name: "back",
         outputs: [],
@@ -413,23 +512,46 @@ export const safeABI = [
     {
         inputs: [],
         name: "commissionReceiver",
-        outputs: [{ internalType: "address", name: "", type: "address" }],
+        outputs: [
+            {
+                internalType: "address",
+                name: "",
+                type: "address",
+            },
+        ],
         stateMutability: "view",
         type: "function",
     },
     {
         inputs: [],
         name: "controllerOracle",
-        outputs: [{ internalType: "address", name: "", type: "address" }],
+        outputs: [
+            {
+                internalType: "address",
+                name: "",
+                type: "address",
+            },
+        ],
         stateMutability: "view",
         type: "function",
     },
     {
         inputs: [
-            { internalType: "address", name: "creator", type: "address" },
-            { internalType: "uint256", name: "id", type: "uint256" },
-            { internalType: "address", name: "receiver", type: "address" },
-            { internalType: "bool", name: "withComission", type: "bool" },
+            {
+                internalType: "uint256",
+                name: "id",
+                type: "uint256",
+            },
+            {
+                internalType: "address",
+                name: "receiver",
+                type: "address",
+            },
+            {
+                internalType: "bool",
+                name: "withComission",
+                type: "bool",
+            },
         ],
         name: "correct",
         outputs: [],
@@ -439,15 +561,33 @@ export const safeABI = [
     {
         inputs: [],
         name: "decimalsComission",
-        outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+        outputs: [
+            {
+                internalType: "uint256",
+                name: "",
+                type: "uint256",
+            },
+        ],
         stateMutability: "view",
         type: "function",
     },
     {
         inputs: [
-            { internalType: "uint256", name: "id", type: "uint256" },
-            { internalType: "uint256", name: "amount", type: "uint256" },
-            { internalType: "uint256", name: "commission", type: "uint256" },
+            {
+                internalType: "uint256",
+                name: "id",
+                type: "uint256",
+            },
+            {
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256",
+            },
+            {
+                internalType: "uint256",
+                name: "commission",
+                type: "uint256",
+            },
         ],
         name: "deposit",
         outputs: [],
@@ -456,15 +596,39 @@ export const safeABI = [
     },
     {
         inputs: [
-            { internalType: "address", name: "", type: "address" },
-            { internalType: "uint256", name: "", type: "uint256" },
+            {
+                internalType: "uint256",
+                name: "",
+                type: "uint256",
+            },
         ],
         name: "deposits",
         outputs: [
-            { internalType: "uint256", name: "amount", type: "uint256" },
-            { internalType: "uint256", name: "commission", type: "uint256" },
-            { internalType: "bool", name: "exist", type: "bool" },
-            { internalType: "bool", name: "withdrawn", type: "bool" },
+            {
+                internalType: "address",
+                name: "creator",
+                type: "address",
+            },
+            {
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256",
+            },
+            {
+                internalType: "uint256",
+                name: "commission",
+                type: "uint256",
+            },
+            {
+                internalType: "bool",
+                name: "exist",
+                type: "bool",
+            },
+            {
+                internalType: "bool",
+                name: "withdrawn",
+                type: "bool",
+            },
         ],
         stateMutability: "view",
         type: "function",
@@ -472,40 +636,76 @@ export const safeABI = [
     {
         inputs: [],
         name: "erc20Token",
-        outputs: [{ internalType: "contract IERC20", name: "", type: "address" }],
+        outputs: [
+            {
+                internalType: "contract IERC20",
+                name: "",
+                type: "address",
+            },
+        ],
         stateMutability: "view",
         type: "function",
     },
     {
-        inputs: [{ internalType: "uint256", name: "newDecimals", type: "uint256" }],
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "newDecimals",
+                type: "uint256",
+            },
+        ],
         name: "setComissionDecimals",
         outputs: [],
         stateMutability: "nonpayable",
         type: "function",
     },
     {
-        inputs: [{ internalType: "address", name: "newReceiver", type: "address" }],
+        inputs: [
+            {
+                internalType: "address",
+                name: "newReceiver",
+                type: "address",
+            },
+        ],
         name: "setComissionReceiver",
         outputs: [],
         stateMutability: "nonpayable",
         type: "function",
     },
     {
-        inputs: [{ internalType: "address", name: "newOracle", type: "address" }],
+        inputs: [
+            {
+                internalType: "address",
+                name: "newOracle",
+                type: "address",
+            },
+        ],
         name: "setOracle",
         outputs: [],
         stateMutability: "nonpayable",
         type: "function",
     },
     {
-        inputs: [{ internalType: "address", name: "newAdmin", type: "address" }],
+        inputs: [
+            {
+                internalType: "address",
+                name: "newAdmin",
+                type: "address",
+            },
+        ],
         name: "transferAdmin",
         outputs: [],
         stateMutability: "nonpayable",
         type: "function",
     },
     {
-        inputs: [{ internalType: "address", name: "newContract", type: "address" }],
+        inputs: [
+            {
+                internalType: "address",
+                name: "newContract",
+                type: "address",
+            },
+        ],
         name: "updateAllowedToken",
         outputs: [],
         stateMutability: "nonpayable",
