@@ -1,0 +1,14 @@
+{
+    "name": "vendor/test-asia",
+    "description": "Test asia scripts",
+    "type": "project",
+    "require": {
+        "web3p/web3.php": "^0.3",
+        "web3p/ethereum-tx": "^0.4"
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "echo 'Зависимости успешно установлены!'"
+        ]
+    }
+}
