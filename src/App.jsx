@@ -24,7 +24,10 @@ function App() {
     const [feePercent, setFeePercent] = useState();
     const [transactionId, setTransactionId] = useState();
 
-    const amountBN = useMemo(() => BigInt((amountWithFee || 0) * 10 ** DECIMALS), [amount]);
+    const amountBN = useMemo(
+        () => BigInt(((amountWithFee || 0) * 10 ** DECIMALS).toFixed(0)),
+        [amount]
+    );
 
     const currency = "USDT";
 
@@ -46,9 +49,11 @@ function App() {
                     setAmountWithFee(_amount);
                     setFeePercent(_fee);
 
-                    const _amountWithoutFee = (_amount * PERCENT_DEL) / (PERCENT_DEL + _fee);
+                    const _amountWithoutFee = parseFloat(
+                        ((_amount * PERCENT_DEL) / (PERCENT_DEL + _fee)).toFixed(4)
+                    );
                     setAmount(_amountWithoutFee);
-                    const feeUsd = Math.round((_amount - _amountWithoutFee) * 10_000) / 10_000;
+                    const feeUsd = parseFloat((_amount - _amountWithoutFee).toFixed(4));
                     setFee(feeUsd);
                     return;
                 }
