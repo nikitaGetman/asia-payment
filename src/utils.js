@@ -16,7 +16,7 @@ export function getReadableError(error) {
     if (errorString.includes("transfer amount exceeds balance"))
         return "Недостаточный баланс кошелька";
 
-    if (errorString.includes("You cannot re-deposit!")) return "Нельзя повторно внести депозит";
+    if (errorString.includes("re-deposit")) return "Нельзя повторно внести депозит";
 
     if (errorString.includes("underlying network changed ")) return "Некорректная сеть";
 

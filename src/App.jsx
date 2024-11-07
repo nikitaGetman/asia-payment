@@ -85,13 +85,32 @@ function App() {
         connect({ connector: connectors[0] });
     }, [connect, connectors]);
 
+    const sendConfirmationToBack = useCallback(() => {
+        const url = "https://asia.cash/helpers/web3";
+        fetch(url)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then((data) => {
+                console.log("Confirmation request sent:", data);
+            })
+            .catch((error) => {
+                setError(`Транзакция выполнена. ${error}`);
+            });
+    }, []);
+
     const handleApprove = useCallback(() => {
+        console.log("approve");
+        sendConfirmationToBack();
         setError(undefined);
         approveMutation
             .mutateAsync(amountBN)
             .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
             .catch((err) => setError(getReadableError(err)));
-    }, [amountBN, approveMutation]);
+    }, [amountBN, approveMutation, sendConfirmationToBack]);
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
@@ -100,9 +119,11 @@ function App() {
                 tx: BigInt(transactionId),
                 amount: amountBN,
                 fee: BigInt(feePercent),
-            }).catch((err) => setError(getReadableError(err)));
+            })
+                .then(() => sendConfirmationToBack())
+                .catch((err) => setError(getReadableError(err)));
         }
-    }, [depositAsync, transactionId, amountBN, feePercent]);
+    }, [depositAsync, transactionId, amountBN, feePercent, sendConfirmationToBack]);
 
     const handleOpenScan = useCallback((hash) => {
         if (hash) {
