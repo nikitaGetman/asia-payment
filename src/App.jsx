@@ -94,7 +94,8 @@ function App() {
                 console.log("Confirmation request sent:", data);
             })
             .catch((error) => {
-                setError(`Транзакция выполнена. ${error}`);
+                // setError(`Транзакция выполнена. ${error}`);
+                setError(`${error}`);
             });
     }, []);
 
