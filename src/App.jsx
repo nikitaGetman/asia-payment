@@ -82,25 +82,21 @@ function App() {
 
     const sendConfirmationToBack = useCallback(() => {
         const url = "https://asia.cash/helpers/web3";
-        console.log(`send request to ${url}`);
         fetch(url)
             .then((response) => {
                 if (!response.ok) {
                     throw new Error("Network response was not ok");
                 }
-                return response.json();
             })
             .then((data) => {
                 console.log("Confirmation request sent:", data);
             })
             .catch((error) => {
-                // setError(`Транзакция выполнена. ${error}`);
-                setError(`${error}`);
+                setError(`Транзакция выполнена. ${error}`);
             });
     }, []);
 
     const handleConnect = useCallback(() => {
-        sendConfirmationToBack();
         setError(undefined);
         connect({ connector: connectors[0] });
     }, [connect, connectors]);
