@@ -80,13 +80,9 @@ function App() {
         [approveMutation, isDepositLoading]
     );
 
-    const handleConnect = useCallback(() => {
-        setError(undefined);
-        connect({ connector: connectors[0] });
-    }, [connect, connectors]);
-
     const sendConfirmationToBack = useCallback(() => {
         const url = "https://asia.cash/helpers/web3";
+        console.log(`send request to ${url}`);
         fetch(url)
             .then((response) => {
                 if (!response.ok) {
@@ -102,15 +98,19 @@ function App() {
             });
     }, []);
 
-    const handleApprove = useCallback(() => {
-        console.log("approve");
+    const handleConnect = useCallback(() => {
         sendConfirmationToBack();
+        setError(undefined);
+        connect({ connector: connectors[0] });
+    }, [connect, connectors]);
+
+    const handleApprove = useCallback(() => {
         setError(undefined);
         approveMutation
             .mutateAsync(amountBN)
             .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
             .catch((err) => setError(getReadableError(err)));
-    }, [amountBN, approveMutation, sendConfirmationToBack]);
+    }, [amountBN, approveMutation]);
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
