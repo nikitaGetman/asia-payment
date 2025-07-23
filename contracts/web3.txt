@@ -1,33 +1,3 @@
-<!-- 
-
-TODO:
-
-1. Установите библиотеку "web3p/web3.php": "^0.3"
-2. В примере кода базовая обработка ошибок. В продакшене рекомендуется добавить более надежную обработку ошибок и логирование.
-
- -->
-
-<?php
-require_once 'vendor/autoload.php';
-
-use Web3\Web3;
-use Web3\Contract;
-use Web3\Utils;
-
-$provider = "https://polygon-mainnet.g.alchemy.com/v2/9gOCAr5xKHJx3G56xEHPm9QPXoS6vWff"; // Alchemy RPC URL
-$contractAddress = '0x2bFc9c26E1c077e36a9714F2265eB81875078B49'; // Адрес контракта
-$abi = file_get_contents('abi.json');; // ABI контракта
-
-// Создаем экземпляр Web3
-$web3 = new Web3($provider);
-
-// Создаем экземпляр контракта
-$contract = new Contract($provider, $abi);
-
-// Устанавливаем начальный блок
-// 61929718 - блок когда контракт был задеплоен 
-$fromBlock = '0x3B0F8F6'; // hex 
-
 
 // Проверка новых транзакций в смарт-контракте
 function web3() {

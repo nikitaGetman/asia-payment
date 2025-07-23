@@ -1,5 +1,3 @@
-import { Logger } from "ethers/lib/utils";
-
 export function getQueryParam(queryString, paramName) {
     const pattern = new RegExp(`[?&]${paramName}=([^&]+)`);
     const match = queryString.match(pattern);
@@ -24,15 +22,3 @@ export function getReadableError(error) {
 
     return "Ошибка";
 }
-
-export const waitForTransaction = async (tx) => {
-    try {
-        await tx.wait();
-        return tx.hash;
-    } catch (error) {
-        if (error.code === Logger.errors.TRANSACTION_REPLACED && !error.cancelled) {
-            return error?.replacement?.hash || "";
-        }
-        throw error;
-    }
-};

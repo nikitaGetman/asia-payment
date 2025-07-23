@@ -1,83 +1,109 @@
+import { useState, useCallback } from "react";
 import {
     useAccount,
-    useContract,
-    useNetwork,
-    useProvider,
-    useSigner,
-    useSwitchNetwork,
+    useWriteContract,
+    useReadContract,
+    useSwitchChain,
+    useWaitForTransactionReceipt,
+    useConfig,
 } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { safeABI, safeAddress, usdtABI, usdtAddress } from "./abi";
-import { waitForTransaction } from "./utils";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-const useUsdtContract = () => {
-    const { data: signer } = useSigner();
-    const provider = useProvider();
+export const useSafeContract = () => {
+    const { chain } = useAccount();
+    const { chains, switchChainAsync } = useSwitchChain();
+    const { writeContractAsync } = useWriteContract();
 
-    const contract = useContract({
-        address: usdtAddress,
-        abi: usdtABI,
-        signerOrProvider: signer || provider,
-    });
+    const [depositTx, setDepositTx] = useState();
 
-    const allowance = async (owner, spender) => {
-        return contract.allowance(owner, spender);
+    const receipt = useWaitForTransactionReceipt({ hash: depositTx });
+
+    console.log("receipt", receipt);
+
+    const deposit = useCallback(
+        async ({ id, amount, fee }) => {
+            if (!chain) {
+                console.log("switch", chains[0]);
+                const res = await switchChainAsync({ chainId: chains[0].id });
+                console.log("res", res);
+            }
+
+            console.log("deposit", id, amount, fee);
+
+            const tx = await writeContractAsync({
+                abi: safeABI,
+                address: safeAddress,
+                functionName: "deposit",
+                args: [id, amount, fee],
+            });
+            console.log("tx", tx);
+            // const res = await waitForTransactionReceipt(config, {
+            //     hash: tx,
+            //     chainId: 137,
+            // });
+            // console.log("res", res);
+            setDepositTx(tx);
+        },
+        [writeContractAsync]
+    );
+
+    return {
+        deposit,
+        depositTx,
+        receipt,
+        isSuccess: receipt.isSuccess,
+        isLoading: receipt.isLoading,
+        isError: receipt.isError,
     };
-    const approve = async (spender, amount) => {
-        const tx = await contract.approve(spender, amount);
-        return waitForTransaction(tx);
-    };
-
-    return { allowance, approve, contract };
-};
-const useSafeContract = () => {
-    const { data: signer } = useSigner();
-    const provider = useProvider();
-
-    const contract = useContract({
-        address: safeAddress,
-        abi: safeABI,
-        signerOrProvider: signer || provider,
-    });
-
-    const deposit = async (id, amount, commission) => {
-        const tx = await contract.deposit(id, amount, commission);
-        return waitForTransaction(tx);
-    };
-
-    return { deposit, contract };
 };
 
 const ALLOWANCE_REQUEST = "allowance-request";
 export const useUsdtAllowance = (amount) => {
-    const { address, isConnected } = useAccount();
-    const usdtContract = useUsdtContract();
+    const { address, isConnected, chain } = useAccount();
+
+    const write = useWriteContract();
+    const allowanceRequest = useReadContract({
+        abi: usdtABI,
+        address: usdtAddress,
+        functionName: "allowance",
+        args: [address, safeAddress],
+    });
     const queryClient = useQueryClient();
-    const { chain } = useNetwork();
-    const { chains, switchNetworkAsync } = useSwitchNetwork();
+    const { chains, switchChainAsync } = useSwitchChain();
+    const [approveTx, setApproveTx] = useState();
 
-    const allowanceRequest = useQuery(
-        [ALLOWANCE_REQUEST, amount.toString(), address],
-        async () => await usdtContract.allowance(address, safeAddress),
-        {
-            enabled: Boolean(amount) && isConnected,
-        }
-    );
+    const approveReceipt = useWaitForTransactionReceipt({
+        hash: "0xb749451943b8c5c11cc6e01e5616238b2bf4e87d86a57f339ea1a43d07d36ca9",
+        pollingInterval: 1_000,
+        confirmations: 1,
+    });
+    console.log("approveReceipt", approveReceipt);
 
-    const approveMutation = useMutation(
-        ["approve-mutation"],
-        async (_amount) => {
-            if (isConnected && chain?.unsupported) {
-                await switchNetworkAsync(chains[0].id);
+    const approveMutation = useMutation({
+        mutationFn: async (_amount) => {
+            console.log("approve", _amount, chain, chains, isConnected);
+            if (!chain) {
+                console.log("switch", chains[0]);
+                const res = await switchChainAsync({ chainId: chains[0].id });
+                console.log("res", res);
             }
-            return usdtContract.approve(safeAddress, _amount);
+            console.log("approving", usdtAddress, safeAddress, _amount);
+            const tx = await write.writeContractAsync({
+                abi: usdtABI,
+                address: usdtAddress,
+                functionName: "approve",
+                args: [safeAddress, _amount],
+            });
+            console.log("tx", tx);
+            setApproveTx(tx);
         },
-        {
-            onSuccess: () => {
-                queryClient.invalidateQueries([ALLOWANCE_REQUEST]);
-            },
-        }
-    );
+        mutationKey: ["approve-mutation"],
+        onSuccess: () => {
+            queryClient.invalidateQueries([ALLOWANCE_REQUEST]);
+        },
+    });
 
     const allowance = allowanceRequest.data;
     const hasApprove = allowanceRequest.isFetched && allowance >= amount;
@@ -85,27 +111,15 @@ export const useUsdtAllowance = (amount) => {
     return {
         allowanceRequest,
         approveMutation,
+        approveReceipt,
 
         allowance,
         hasApprove,
         isLoading:
             allowanceRequest.isLoading ||
             allowanceRequest.isFetching ||
-            allowanceRequest.isRefetching,
+            allowanceRequest.isRefetching ||
+            approveMutation.isPending,
         isError: allowanceRequest.isError || allowanceRequest.isLoadingError,
     };
-};
-
-export const useDeposit = () => {
-    const safeContract = useSafeContract();
-    const { isConnected } = useAccount();
-    const { chain } = useNetwork();
-    const { chains, switchNetworkAsync } = useSwitchNetwork();
-
-    return useMutation(["deposit-mutation"], async ({ tx, amount, fee }) => {
-        if (isConnected && chain?.unsupported) {
-            await switchNetworkAsync(chains[0].id);
-        }
-        return safeContract.deposit(tx, amount, fee);
-    });
 };

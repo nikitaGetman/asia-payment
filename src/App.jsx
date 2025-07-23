@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useAccount, useConnect, useNetwork } from "wagmi";
-import { useDeposit, useUsdtAllowance } from "./hooks";
+import { useAccount, useConnect } from "wagmi";
+import { useSafeContract, useUsdtAllowance } from "./hooks";
 import { getQueryParam, getReadableError } from "./utils";
 import { useSwitchNetworkToSupported } from "./useSwitchNetworkToSupported";
 import logo from "./assets/logo.svg";
@@ -13,8 +13,7 @@ import "./App.css";
 const DECIMALS = 6;
 const PERCENT_DEL = 1000;
 function App() {
-    const { chain } = useNetwork();
-    const { isConnected } = useAccount();
+    const { isConnected, chain } = useAccount();
     const { connect, connectors } = useConnect();
     const [error, setError] = useState();
 
@@ -26,7 +25,7 @@ function App() {
 
     const amountBN = useMemo(
         () => BigInt(((amountWithFee || 0) * 10 ** DECIMALS).toFixed(0)),
-        [amount]
+        [amountWithFee]
     );
 
     const currency = "USDT";
@@ -65,23 +64,27 @@ function App() {
     const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
 
     const {
-        mutateAsync: depositAsync,
+        deposit,
+        depositTx,
+        receipt: depositData,
         isLoading: isDepositLoading,
-        data: depositData,
         isSuccess: isDepositSuccess,
-    } = useDeposit();
+        isError: isDepositError,
+    } = useSafeContract();
+
+    console.log("isDepositSuccess", isDepositSuccess, depositData);
 
     const isCompleted = useMemo(
-        () => isDepositSuccess && depositData,
+        () => isDepositSuccess && depositData.data,
         [isDepositSuccess, depositData]
     );
     const isLoading = useMemo(
-        () => approveMutation.isLoading || isDepositLoading,
+        () => approveMutation.isPending || approveMutation.isLoading || isDepositLoading,
         [approveMutation, isDepositLoading]
     );
 
     const sendConfirmationToBack = useCallback(() => {
-        const url = "https://asia.cash/helpers/web3";
+        const url = `https://asia.cash/helpers/web3?tx=${transactionId}`;
         fetch(url)
             .then((response) => {
                 if (!response.ok) {
@@ -94,7 +97,19 @@ function App() {
             .catch((error) => {
                 setError(`Транзакция выполнена. ${error}`);
             });
-    }, []);
+    }, [transactionId]);
+
+    useEffect(() => {
+        if (isDepositSuccess) {
+            sendConfirmationToBack();
+        }
+    }, [isDepositSuccess, sendConfirmationToBack]);
+
+    useEffect(() => {
+        if (isDepositError) {
+            setError(getReadableError(depositData.error));
+        }
+    }, [isDepositError]);
 
     const handleConnect = useCallback(() => {
         setError(undefined);
@@ -107,20 +122,18 @@ function App() {
             .mutateAsync(amountBN)
             .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
             .catch((err) => setError(getReadableError(err)));
-    }, [amountBN, approveMutation]);
+    }, [amountBN, approveMutation, allowanceRequest]);
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
         if (transactionId !== undefined && amountBN !== undefined && feePercent !== undefined) {
-            depositAsync({
-                tx: BigInt(transactionId),
+            deposit({
+                id: BigInt(transactionId),
                 amount: amountBN,
                 fee: BigInt(feePercent),
-            })
-                .then(() => sendConfirmationToBack())
-                .catch((err) => setError(getReadableError(err)));
+            });
         }
-    }, [depositAsync, transactionId, amountBN, feePercent, sendConfirmationToBack]);
+    }, [deposit, transactionId, amountBN, feePercent]);
 
     const handleOpenScan = useCallback((hash) => {
         if (hash) {
@@ -185,7 +198,7 @@ function App() {
                                 </button>
                             ) : (
                                 <button className="app__action" onClick={handleApprove}>
-                                    {allowanceRequest.isLoading || approveMutation.isLoading ? (
+                                    {allowanceRequest.isLoading || approveMutation.isPending ? (
                                         <>Загрузка...</>
                                     ) : (
                                         <>Разрешить использование {currency}</>
@@ -244,8 +257,8 @@ function App() {
                     </button>
                 ) : null}
 
-                {depositData ? (
-                    <div className="app__notification" onClick={() => handleOpenScan(depositData)}>
+                {depositData.data ? (
+                    <div className="app__notification" onClick={() => handleOpenScan(depositTx)}>
                         <img src={ok} alt="Success icon" />
                         <div className="app__flex">
                             <div className="app__notification-label">Транзакция отправлена</div>
