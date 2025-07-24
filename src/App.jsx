@@ -22,6 +22,7 @@ function App() {
     const [fee, setFee] = useState();
     const [feePercent, setFeePercent] = useState();
     const [transactionId, setTransactionId] = useState();
+    const [logs, setLogs] = useState([]);
 
     const amountBN = useMemo(
         () => BigInt(((amountWithFee || 0) * 10 ** DECIMALS).toFixed(0)),
@@ -29,6 +30,9 @@ function App() {
     );
 
     const currency = "USDT";
+
+    const pushLog = (type, message) =>
+        setLogs(prev => [...prev, { type, message }]);
 
     useSwitchNetworkToSupported();
     useEffect(() => {
@@ -111,25 +115,26 @@ function App() {
         }
     }, [isDepositError]);
 
+    console.log("logs", logs)
+
     const tryConnect = useCallback(
         async (c) => {
             if (!c) return false;
             try {
-                alert("Connection start")
+                pushLog('INFO', 'Connection start');
                 const provider = await c.getProvider?.();
-                alert("Connection continued 1");
+                pushLog('INFO', 'Connection continued 1');
                 if (!provider) {
-                    alert("No provider");
+                    pushLog('ERROR', 'No provider');
                     throw new Error("no provider");
                 }
-                alert("Connection continued 2");
+                pushLog('INFO', 'Connection continued 2');
                 await connect({ connector: c });
-                alert("Connection finished true");
+                pushLog('INFO', 'Connection finished true');
                 return true;
             } catch (e) {
-                console.warn(`[connect fail] ${c.id}:`, e?.message || e);
-
-                alert("Connection error: " + `[connect fail] ${c.id}:` + `${e?.message || e}`);
+                // console.warn(`[connect fail] ${c.id}:`, e?.message || e);
+                pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
                 return false;
             }
         },
@@ -295,6 +300,20 @@ function App() {
                         </div>
                     </div>
                 ) : null}
+
+                <div className="app_logs">
+                    <h3 className="app_logs_h3">LOGS</h3>
+                    <div className="app_logs_body">
+                        {logs.map((log, i) => (
+                            <span
+                                key={i}
+                                className={`app_log app_log_${log.type.toLowerCase()}`}
+                            >
+                              [Type: {log.type}] {log.message}
+                            </span>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
