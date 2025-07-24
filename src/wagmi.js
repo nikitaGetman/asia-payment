@@ -1,21 +1,24 @@
 import { createConfig, http } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 import { injected } from '@wagmi/connectors';
-import { waitForInjected } from './waitForInjected';
-
-function dbgAlert(tag, payload) {
-    alert('[ALERT] ' + tag + ': ' + JSON.stringify(payload, null, 2));
-}
+import {waitForInjected} from "./waitForInjected";
 
 export const config = createConfig({
     autoConnect: true,
     chains: [polygon],
     connectors: [
+        // Trust Wallet
         injected({
-            getProvider: () => {
-                dbgAlert('getProvider', 'called');
-                return waitForInjected();
-            },
+            target: 'trustWallet',
+            getProvider: () => waitForInjected(),           // ⬅️ новая строка
+            shimDisconnect: true,
+            UNSTABLE_shimOnConnectSelectAccount: true,
+        }),
+
+        // MetaMask
+        injected({
+            target: 'metaMask',
+            getProvider: () => waitForInjected(),           // ⬅️ новая строка
             shimDisconnect: true,
             UNSTABLE_shimOnConnectSelectAccount: true,
         }),

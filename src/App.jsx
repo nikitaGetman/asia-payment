@@ -111,18 +111,37 @@ function App() {
         }
     }, [isDepositError]);
 
-    const handleConnect = async () => {
-        const c = connectors[0];
-        alert('[ALERT] try connect via ' + c?.id);
-        try {
-            const provider = await c.getProvider();
-            alert('[ALERT] provider ' + (provider ? 'FOUND' : 'NOT found'));
-            await connect({ connector: c });
-            alert('[ALERT] connect SUCCESS');
-        } catch (err) {
-            alert('[ALERT] connect ERROR: ' + (err?.message || err));
-        }
-    };
+    const tryConnect = useCallback(
+        async (c) => {
+            if (!c) return false;
+            try {
+                alert("Connection start")
+                const provider = await c.getProvider?.();
+                alert("Connection continued 1");
+                if (!provider) {
+                    alert("No provider");
+                    throw new Error("no provider");
+                }
+                alert("Connection continued 2");
+                await connect({ connector: c });
+                alert("Connection finished true");
+                return true;
+            } catch (e) {
+                console.warn(`[connect fail] ${c.id}:`, e?.message || e);
+
+                alert("Connection error: " + `[connect fail] ${c.id}:` + `${e?.message || e}`);
+                return false;
+            }
+        },
+        [connect]
+    );
+
+    const handleConnect = useCallback(async () => {
+        const byId = Object.fromEntries(connectors.map((c) => [c.id, c]));
+        if (await tryConnect(byId.trustWallet)) return;
+        if (await tryConnect(byId.metaMask)) return;
+        throw new Error("No supported injected wallets found");
+    }, [connectors, tryConnect]);
 
     const handleApprove = useCallback(() => {
         setError(undefined);
