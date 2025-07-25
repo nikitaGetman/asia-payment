@@ -142,10 +142,9 @@ function App() {
     );
 
     const handleConnect = useCallback(async () => {
-        const byId = Object.fromEntries(connectors.map((c) => [c.id, c]));
-        if (await tryConnect(byId.trustWallet)) return;
-        if (await tryConnect(byId.metaMask)) return;
-        throw new Error("No supported injected wallets found");
+        const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
+        if (await tryConnect(byId.injected)) return;
+        if (await tryConnect(byId.walletConnect)) return;
     }, [connectors, tryConnect]);
 
     const handleApprove = useCallback(() => {
