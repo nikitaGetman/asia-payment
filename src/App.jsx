@@ -116,42 +116,39 @@ function App() {
         }
     }, [isDepositError]);
 
-    const tryConnect = useCallback(
-        async (c) => {
-            if (!c) return false;
-            try {
-                pushLog('INFO', 'Connection start');
-                const provider = await c.getProvider?.();
-                pushLog('INFO', 'Connection continued 1');
-                if (!provider) {
-                    pushLog('ERROR', 'No provider');
-                    throw new Error("no provider");
-                }
-                pushLog('INFO', 'Connection continued 2');
-                await connect({ connector: c });
-                pushLog('INFO', 'Connection finished true');
-                return true;
-            } catch (e) {
-                console.warn(`[connect fail] ${c.id}:`, e?.message || e);
-                pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
-                return false;
+    const tryConnect = useCallback(async (c) => {
+        if (!c) return false;
+        try {
+            pushLog('INFO', 'Connection start');
+            const provider = await c.getProvider?.();
+            pushLog('INFO', 'Connection continued 1');
+            if (!provider) {
+                pushLog('ERROR', 'No provider');
+                throw new Error("no provider");
             }
-        },
-        [connect]
-    );
+            pushLog('INFO', 'Connection continued 2');
+            await connect({ connector: c });
+            pushLog('INFO', 'Connection finished true');
+            return true;
+        } catch (e) {
+            console.warn(`[connect fail] ${c.id}:`, e?.message || e);
+            pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
+            return false;
+        }
+    }, [connect]);
 
-    const handleConnect = useCallback(async () => {
-        const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
+    const handleConnect = async () => {
+        const byId = Object.fromEntries(connectors.map((c) => [c.id, c]))
 
         if (isTrustWalletBrowser()) {
-            await tryConnect(byId.walletConnect);
-            return;
+            await connect({ connector: byId.trustWallet })   // deep-link без модалки
+            return
         }
-
-        if (await tryConnect(byId.injected)) return;
-
-        await tryConnect(byId.walletConnect);
-    }, [connectors, tryConnect]);
+        // MetaMask / Trust iOS
+        if (await tryConnect(byId.injected)) return
+        // Десктоп без расширений → QR
+        await connect({ connector: byId.walletConnect })
+    }
 
     const handleApprove = useCallback(() => {
         setError(undefined);
@@ -177,6 +174,7 @@ function App() {
             window.open(`https://polygonscan.com/tx/${hash}`, "_blank");
         }
     }, []);
+
     const handleCloseWindow = useCallback(() => {
         window.close();
     }, []);
