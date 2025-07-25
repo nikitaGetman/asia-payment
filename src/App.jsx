@@ -140,13 +140,16 @@ function App() {
     const handleConnect = async () => {
         const byId = Object.fromEntries(connectors.map((c) => [c.id, c]))
 
-        if (isTrustWalletBrowser()) {
-            await connect({ connector: byId.trustWallet })   // deep-link без модалки
+        if (isTrustWalletBrowser(pushLog)) {
+            pushLog("INFO", "It is TrustWalletBrowser");
+            await connect({ connector: byId.trustWallet })
             return
         }
-        // MetaMask / Trust iOS
-        if (await tryConnect(byId.injected)) return
-        // Десктоп без расширений → QR
+        if (await tryConnect(byId.injected)) {
+            pushLog("INFO", "It is MetaMask / Trust iOS");
+            return
+        }
+        pushLog("INFO", "Dont know the connector");
         await connect({ connector: byId.walletConnect })
     }
 
