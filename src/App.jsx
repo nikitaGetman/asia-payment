@@ -7,6 +7,7 @@ import logo from "./assets/logo.svg";
 import ok from "./assets/ok.svg";
 import loader from "./assets/loader.svg";
 import "./App.css";
+import {isTrustWalletBrowser} from "./utils/isTrustWalletBrowser";
 
 /* global BigInt */
 
@@ -115,8 +116,6 @@ function App() {
         }
     }, [isDepositError]);
 
-    console.log("logs", logs)
-
     const tryConnect = useCallback(
         async (c) => {
             if (!c) return false;
@@ -133,7 +132,7 @@ function App() {
                 pushLog('INFO', 'Connection finished true');
                 return true;
             } catch (e) {
-                // console.warn(`[connect fail] ${c.id}:`, e?.message || e);
+                console.warn(`[connect fail] ${c.id}:`, e?.message || e);
                 pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
                 return false;
             }
@@ -143,8 +142,15 @@ function App() {
 
     const handleConnect = useCallback(async () => {
         const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
+
+        if (isTrustWalletBrowser()) {
+            await tryConnect(byId.walletConnect);
+            return;
+        }
+
         if (await tryConnect(byId.injected)) return;
-        if (await tryConnect(byId.walletConnect)) return;
+
+        await tryConnect(byId.walletConnect);
     }, [connectors, tryConnect]);
 
     const handleApprove = useCallback(() => {
