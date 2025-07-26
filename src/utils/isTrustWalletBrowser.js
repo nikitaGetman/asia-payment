@@ -1,13 +1,25 @@
 export function isTrustWalletBrowser(pushLog) {
-    if (typeof navigator === 'undefined') {
-        if (pushLog) {
-            pushLog("ERROR", "Navigating is undefined");
+    if (typeof window !== 'undefined') {
+        const w = /** @type {any} */ (window);
+        if (w.trustwallet) {
+            pushLog && pushLog('INFO', 'Detected window.trustwallet');
+            return true;
         }
-        return false
-    };
-    const ua = navigator.userAgent || '';
-    if (pushLog) {
-        pushLog("INFO", "userAgent is: " + ua);
+        if (w.ethereum?.isTrust) {
+            pushLog && pushLog('INFO', 'Detected ethereum.isTrust');
+            return true;
+        }
     }
-    return /trust\s?wallet/i.test(ua);
+
+    if (typeof navigator !== 'undefined') {
+        const ua = navigator.userAgent || '';
+        pushLog && pushLog('INFO', 'userAgent is: ' + ua);
+        if (/trust\s?wallet/i.test(ua)) {
+            pushLog && pushLog('INFO', 'Detected by UA');
+            return true;
+        }
+    }
+
+    pushLog && pushLog('INFO', 'Not TrustWallet');
+    return false;
 }

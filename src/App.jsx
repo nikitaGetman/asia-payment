@@ -138,20 +138,22 @@ function App() {
     }, [connect]);
 
     const handleConnect = async () => {
-        const byId = Object.fromEntries(connectors.map((c) => [c.id, c]))
+        const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
 
         if (isTrustWalletBrowser(pushLog)) {
-            pushLog("INFO", "It is TrustWalletBrowser");
-            await connect({ connector: byId.trustWallet })
-            return
+            pushLog('INFO', 'Trust Wallet detected → deep link connect');
+            await connect({ connector: byId.trustWallet });   // кастомный WC-коннектор
+            return;
         }
+
         if (await tryConnect(byId.injected)) {
-            pushLog("INFO", "It is MetaMask / Trust iOS");
-            return
+            pushLog('INFO', 'Injected wallet connected');
+            return;
         }
-        pushLog("INFO", "Dont know the connector");
-        await connect({ connector: byId.walletConnect })
-    }
+
+        pushLog('INFO', 'Fallback to WalletConnect QR');
+        await connect({ connector: byId.walletConnect });
+    };
 
     const handleApprove = useCallback(() => {
         setError(undefined);
