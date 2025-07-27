@@ -309,19 +309,19 @@ function App() {
                     </div>
                 ) : null}
 
-                {/*<div className="app_logs">*/}
-                {/*    <h3 className="app_logs_h3">LOGS</h3>*/}
-                {/*    <div className="app_logs_body">*/}
-                {/*        {logs.map((log, i) => (*/}
-                {/*            <span*/}
-                {/*                key={i}*/}
-                {/*                className={`app_log app_log_${log.type.toLowerCase()}`}*/}
-                {/*            >*/}
-                {/*              [Type: {log.type}] {log.message}*/}
-                {/*            </span>*/}
-                {/*        ))}*/}
-                {/*    </div>*/}
-                {/*</div>*/}
+                <div className="app_logs">
+                    <h3 className="app_logs_h3">LOGS</h3>
+                    <div className="app_logs_body">
+                        {logs.map((log, i) => (
+                            <span
+                                key={i}
+                                className={`app_log app_log_${log.type.toLowerCase()}`}
+                            >
+                              [Type: {log.type}] {log.message}
+                            </span>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
