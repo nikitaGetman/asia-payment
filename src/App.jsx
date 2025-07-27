@@ -140,19 +140,19 @@ function App() {
     const handleConnect = async () => {
         const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
 
-        // if (isTrustWalletBrowser(pushLog)) {
-        //     pushLog('INFO', 'Trust Wallet detected → deep link connect');
-        //     await connect({ connector: byId.trustWallet });   // кастомный WC-коннектор
-        //     return;
-        // }
+        if (isTrustWalletBrowser(pushLog)) {
+            pushLog('INFO', 'Trust Wallet detected → deep link connect');
+            await connect({ connector: byId.trustWallet });   // кастомный WC-коннектор
+            return;
+        }
 
         if (await tryConnect(byId.injected)) {
             pushLog('INFO', 'Injected wallet connected');
             return;
         }
 
-        pushLog('INFO', 'Can not Injected wallet, connect to trust wallet');
-        await connect({ connector: byId.trustWallet });
+        pushLog('INFO', 'Fallback to WalletConnect QR');
+        await connect({ connector: byId.walletConnect });
     };
 
     const handleApprove = useCallback(() => {
@@ -309,19 +309,19 @@ function App() {
                     </div>
                 ) : null}
 
-                <div className="app_logs">
-                    <h3 className="app_logs_h3">LOGS</h3>
-                    <div className="app_logs_body">
-                        {logs.map((log, i) => (
-                            <span
-                                key={i}
-                                className={`app_log app_log_${log.type.toLowerCase()}`}
-                            >
-                              [Type: {log.type}] {log.message}
-                            </span>
-                        ))}
-                    </div>
-                </div>
+                {/*<div className="app_logs">*/}
+                {/*    <h3 className="app_logs_h3">LOGS</h3>*/}
+                {/*    <div className="app_logs_body">*/}
+                {/*        {logs.map((log, i) => (*/}
+                {/*            <span*/}
+                {/*                key={i}*/}
+                {/*                className={`app_log app_log_${log.type.toLowerCase()}`}*/}
+                {/*            >*/}
+                {/*              [Type: {log.type}] {log.message}*/}
+                {/*            </span>*/}
+                {/*        ))}*/}
+                {/*    </div>*/}
+                {/*</div>*/}
             </div>
         </div>
     );
