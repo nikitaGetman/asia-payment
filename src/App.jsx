@@ -140,14 +140,14 @@ function App() {
     const handleConnect = async () => {
         const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
 
-        // if (isTrustWalletBrowser(pushLog)) {
-        //     pushLog('INFO', 'Trust Wallet detected → deep link connect');
-        //     await connect({ connector: byId.trustWallet });   // кастомный WC-коннектор
-        //     return;
-        // }
-
         if (await tryConnect(byId.injected)) {
             pushLog('INFO', 'Injected wallet connected');
+            return;
+        }
+
+        if (isTrustWalletBrowser(pushLog)) {
+            pushLog('INFO', 'Trust Wallet detected → deep-link');
+            await connect({ connector: byId.trustWallet });   // WC v2
             return;
         }
 

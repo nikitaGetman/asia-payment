@@ -2,6 +2,7 @@ import { createConfig, http } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 import { injected } from '@wagmi/connectors';
 import { walletConnect } from '@wagmi/connectors';
+import { trustWallet } from '@wagmi/connectors';
 import { waitForInjected } from './waitForInjected';
 import { isTrustWalletBrowser } from './utils/isTrustWalletBrowser';
 
@@ -19,20 +20,23 @@ export const config = createConfig({
 
         walletConnect({
             projectId: WC_PROJECT_ID,
-            showQrModal: !isTrust,
-            metadata: {
-                name: 'Asia.cash',
-                description: 'Deposit dApp',
-                url: 'https://asia.cash',
-                icons: ['https://asia.cash/icon.png'],
+            showQrModal: true,
+            qrModalOptions: {
+                enableExplorer: false,
+                desktopWallets: [],
+                mobileWallets: [
+                    {
+                        id: '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
+                        name: 'Trust Wallet',
+                        links: {
+                            native: 'trust://',
+                            universal: 'https://link.trustwallet.com',
+                        },
+                    },
+                ],
+                themeMode: 'dark',
             },
-            onUri: (uri) => {
-                if (isTrust) {
-                    window.location.href =
-                        `trust://wc?uri=${encodeURIComponent(uri)}`;
-                }
-            },
-        }),
+        })
     ],
     transports: { [polygon.id]: http() },
 });

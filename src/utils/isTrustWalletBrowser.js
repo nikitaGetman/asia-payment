@@ -1,25 +1,38 @@
 export function isTrustWalletBrowser(pushLog) {
-    if (typeof window !== 'undefined') {
-        const w = /** @type {any} */ (window);
-        if (w.trustwallet) {
-            pushLog && pushLog('INFO', 'Detected window.trustwallet');
-            return true;
-        }
-        if (w.ethereum?.isTrust) {
-            pushLog && pushLog('INFO', 'Detected ethereum.isTrust');
-            return true;
-        }
+    const log = (m) => pushLog?.('INFO', m);
+
+    if (typeof window === 'undefined') return false;
+    const w = window;
+
+    // 1) Новые версии: провайдер лежит в массиве window.ethereum.providers
+    const pickProvider = (eth) =>
+        Array.isArray(eth?.providers)
+            ? eth.providers.find((p) => p.isTrust || p.isTrustWallet)
+            : undefined;
+
+    const eth = w.ethereum;
+
+    // direct flags (старые версии / расширение)
+    if (eth?.isTrust || eth?.isTrustWallet || w.trustwallet) {
+        log('Detected ethereum.isTrust*');
+        return true;
     }
 
-    if (typeof navigator !== 'undefined') {
-        const ua = navigator.userAgent || '';
-        pushLog && pushLog('INFO', 'userAgent is: ' + ua);
-        if (/trust\s?wallet/i.test(ua)) {
-            pushLog && pushLog('INFO', 'Detected by UA');
-            return true;
-        }
+    // multi-provider injection
+    const tw = pickProvider(eth);
+    if (tw) {
+        w.ethereum = tw;              // «прокидываем» Trust-провайдер наверх
+        log('Detected Trust provider in ethereum.providers');
+        return true;
     }
 
-    pushLog && pushLog('INFO', 'Not TrustWallet');
+    // fallback по user-agent
+    const ua = navigator?.userAgent ?? '';
+    if (/trust\s?wallet/i.test(ua)) {
+        log('Detected by UA');
+        return true;
+    }
+
+    log('Not TrustWallet');
     return false;
 }
