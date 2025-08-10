@@ -28,80 +28,132 @@ $contract = new Contract($provider, $abi);
 // 61929718 - блок когда контракт был задеплоен 
 $fromBlock = '0x3B0F8F6'; // hex 
 
-// Функция для прослушивания событий
-function listenToEvents($web3, $contract, $contractAddress, &$fromBlock) {
-    // Получаем последний номер блока
-    $web3->eth->blockNumber(function ($err, $blockNumber) use ($web3, $contract, $contractAddress, &$fromBlock) {
-        if ($err !== null) {
-            echo 'Error: ' . $err->getMessage() . PHP_EOL;
-            return;
+
+// Проверка новых транзакций в смарт-контракте
+function web3() {
+	// Сортируем по убыванию, то есть новые депозиты будут первыми
+	// (опционально, но если могут накопиться старые депозиты с статусом 4, то лучше сортировать по убыванию)
+    $items = Transactions::findWhere('WHERE status=4 ORDER BY id DESC');
+    file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Получено ".count($items)." items из базы\n", FILE_APPEND);
+    if(!empty($items)) {
+        $sett = Web3Settings::findById(1);
+
+        $provider = $sett->provider; // Alchemy RPC URL
+        $contractAddress = $sett->contractAddress; // Адрес контракта
+        $abi = file_get_contents(ROOT.'/priv/src/abi.json'); // ABI контракта
+
+        // Создаем экземпляр Web3
+		// $options = [
+		// 	'timeout' => 10, // 10 секунд
+		// ];
+		// $web3 = new Web3($provider, null, $options);
+		$web3 = new Web3($provider);
+        // Создаем экземпляр контракта
+        $contract = new Contract($provider, $abi);
+
+        // Для каждого item получаем статус депозита из смарт-контракта
+        foreach($items as $item) {
+			try {
+				$id = $item->id;
+				file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Проверка депозита id=$id\n", FILE_APPEND);
+				$contract->at($contractAddress)->call('deposits', $id, function ($err, $deposit) use ($item, $id) {
+					if ($err !== null) {
+						$msg = date('d.m.Y H:i:s')." Ошибка при вызове deposits($id): " . $err->getMessage() . "\n";
+						file_put_contents(ROOT.'/web3_log.txt', $msg, FILE_APPEND);
+						return;
+					}
+					file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Ответ deposits($id): ".json_encode($deposit)."\n", FILE_APPEND);
+
+					// $deposit =  
+					// {
+					// 	"creator":"0x58f53f2b0988b69a7a10f5817b0587056940bbe2",
+					// 	"amount":{"value":"50750000","is_negative":false,"precision":-1,"bitmask":false,"hex":null},
+					// 	"commission":{"value":"15","is_negative":false,"precision":-1,"bitmask":false,"hex":null},
+					// 	"exist":true,
+					// 	"withdrawn":false
+					// }
+
+					// Корректно работаем с объектом $deposit или массивом
+                    if (is_array($deposit)) {
+                        $exist = array_key_exists('exist', $deposit) ? $deposit['exist'] : null;
+                        $withdrawn = array_key_exists('withdrawn', $deposit) ? $deposit['withdrawn'] : null;
+						$amount = (string)$deposit['amount'];
+						$commission = (string)$deposit['commission'];
+                    } else {
+                        $exist = property_exists($deposit, 'exist') ? $deposit->exist : null;
+                        $withdrawn = property_exists($deposit, 'withdrawn') ? $deposit->withdrawn : null;
+                        $amount = (string)$deposit->amount 
+                        $commission = (string)$deposit->commission
+                    }
+
+                    $deposit_active = ($exist === true || $exist === 1 || $exist === '1') && ($withdrawn === false || $withdrawn === 0 || $withdrawn === '0');
+
+					file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Депозит exist=$exist, withdrawn=$withdrawn, active=$deposit_active amount=$amount, commission=$commission\n", FILE_APPEND);
+
+					if ($deposit_active) {
+						file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Депозит найден и не выведен для id=$id\n", FILE_APPEND);
+						
+						// Дополнительно проверяем сумму депозита и комиссию
+						if((string)($item->deposit*1000000) == $amount && (string)$commission == (($item->proc_buyer + $item->proc_seller)*10)) {
+							file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Сумма и комиссия совпадают для id=$id\n", FILE_APPEND);
+							$item->status = 5;
+							$item->web3back = 1; //Возврат депозита
+							$item->status_date = time();
+							$item->save();
+
+							$item->currenciesIn = Currencies::findById($item->currencies_in_id);
+							$item->currenciesOut = Currencies::findById($item->currencies_out_id);
+							$item->summ = Helpers::priceSpace($item->sum2);
+							$item->summ2 = Helpers::priceSpace(round($item->sum*$item->course,2));
+
+							$mess = new TransactionsChats;
+							$mess->transaction_id = $id;
+							$mess->date = mktime(date('H'),date('i'),date('s'),date('n'),date('j'),date('Y'));
+							$mess->text = 'Продавец внес депозит.'.PHP_EOL.'<a href="/tg/transaction-options/'.$id.'">Произведите оплату</a> в размере '.$item->summ.' '.$item->currenciesIn->name;
+							$mess->file = '';
+							$mess->filename = '';
+							$mess->file_ext = '';
+							$mess->image = '';
+							$mess->user = 0;
+							$mess->seller = 0;
+							$mess->view = 0;
+							$mess->auto = 1;
+							$mess->showBuyer = 1;
+							$mess->showSeller = 0;
+							$mess->save();
+
+							$mess = new TransactionsChats;
+							$mess->transaction_id = $id;
+							$mess->date = mktime(date('H'),date('i'),date('s'),date('n'),date('j'),date('Y'));
+							$mess->text = 'Депозит внесен, ожидайте оплаты от покупателя';
+							$mess->file = '';
+							$mess->filename = '';
+							$mess->file_ext = '';
+							$mess->image = '';
+							$mess->user = 0;
+							$mess->seller = 0;
+							$mess->view = 0;
+							$mess->auto = 1;
+							$mess->showBuyer = 0;
+							$mess->showSeller = 1;
+							$mess->save();
+
+							$mess = '💸 _Продавец успешно внес депозит.'.PHP_EOL.PHP_EOL.'_*Произведите оплату по указанным реквизитам.*';
+							Telegram::mess($item->users_buy_id,$mess,$id);
+							file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Статус и сообщения обновлены для id=$id\n", FILE_APPEND);
+						} else {
+							file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Сумма или комиссия не совпадают для id=$id: amount=$amount, commission=$commission\n", FILE_APPEND);
+						}
+					} else {
+						file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Депозит не найден или уже выведен для id=$id\n", FILE_APPEND);
+					}
+				});
+			} catch (\Exception $e) {
+				$msg = date('d.m.Y H:i:s')." Ошибка при получении данных депозита: " . $e->getMessage() . "\n";
+				file_put_contents(ROOT.'/web3_log.txt', $msg, FILE_APPEND);
+			}
         }
-
-        // Конвертируем номера блоков в hex
-        $toBlock = Utils::toHex($blockNumber, true);
-
-        // Получаем хеш темы (topic) для события 'Safe'        
-        $eventSignature = 'Safe(address,address,uint256,uint256,uint256)';
-        $eventTopic = Utils::sha3($eventSignature);
-
-        // Параметры фильтра
-        $filter = [
-            'fromBlock' => $fromBlock,
-            'toBlock' => $toBlock,
-            'address' => $contractAddress,
-            'topics' => [$eventTopic]
-        ];
-
-        // Получаем события
-        $web3->eth->getLogs($filter, function ($err, $logs) use ($contract, &$fromBlock, $toBlock) {
-            if ($err !== null) {
-                echo 'Error: ' . $err->getMessage() . PHP_EOL;
-                return;
-            }
-
-            foreach ($logs as $log) {
-                // Декодируем данные события
-                // Извлекаем индексированные параметры из topics
-                $creator = '0x' . substr($log->topics[1], 26); // Адрес занимает последние 40 символов
-                $id = hexdec($log->topics[2]); // Конвертируем из hex в decimal
-
-                // Декодируем неиндексированные параметры из data
-                try {
-                    $decodedData = $contract->ethabi->decodeParameters(
-                        ['address', 'uint256', 'uint256'],
-                        $log->data
-                    );
-
-                    $erc20Address = $decodedData[0];
-                    $amount = $decodedData[1];
-                    $commission = $decodedData[2];
-
-                    echo "Новое событие Safe:\n";
-                    echo "ERC20_ADDRESS: $erc20Address\n";
-                    echo "Creator: $creator\n";
-                    echo "ID: $id\n";
-                    echo "Amount: $amount\n";
-                    echo "Commission: $commission\n";
-                    echo "-------------------------\n";
-
-                    // TODO:
-                    // - проверить что $amount и $commission соответствуют параметрам сделки - $amount представляет собой целое число, первые 6 знаков определяют дробную часть 
-                    // - изменить статус сделки с $id 
-
-                } catch (\Exception $e) {
-                    echo 'Ошибка при декодировании данных события: ' . $e->getMessage() . PHP_EOL;
-                }
-            }
-
-            // Обновляем fromBlock для следующей итерации
-            $fromBlock = Utils::toHex(Utils::toBn($toBlock)->add(Utils::toBn(1)), true);
-        });
-    });
-}
-
-// Бесконечный цикл для прослушивания событий
-while (true) {
-    listenToEvents($web3, $contract, $contractAddress, $fromBlock);
-    // Задержка перед следующим опросом (например, 10 секунд)
-    sleep(10);
+    } else {
+        file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Нет items со статусом 4\n", FILE_APPEND);
+    }
 }

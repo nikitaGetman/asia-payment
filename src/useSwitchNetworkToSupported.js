@@ -1,11 +1,10 @@
 import { useEffect, useRef } from "react";
-import { useAccount, useNetwork, useSwitchNetwork } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 
 export const useSwitchNetworkToSupported = () => {
-    const { isConnected } = useAccount();
-    const { chain } = useNetwork();
+    const { isConnected, chain } = useAccount();
 
-    const { chains, switchNetworkAsync } = useSwitchNetwork();
+    const { chains, switchChain } = useSwitchChain();
 
     const isSwitchTried = useRef(false);
 
@@ -13,9 +12,9 @@ export const useSwitchNetworkToSupported = () => {
     useEffect(() => {
         const handleSwitch = async () => {
             if (isConnected && chain?.unsupported) {
-                if (switchNetworkAsync) {
+                if (switchChain) {
                     isSwitchTried.current = true;
-                    switchNetworkAsync(chains[0].id).catch((err) => console.warn(err));
+                    switchChain(chains[0].id).catch((err) => console.warn(err));
                 }
             }
         };
@@ -23,5 +22,5 @@ export const useSwitchNetworkToSupported = () => {
         if (!isSwitchTried.current) {
             handleSwitch();
         }
-    }, [isConnected, chain, chains, switchNetworkAsync]);
+    }, [isConnected, chain, chains, switchChain]);
 };

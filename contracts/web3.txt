@@ -1,0 +1,129 @@
+
+// Проверка новых транзакций в смарт-контракте
+function web3() {
+	// Сортируем по убыванию, то есть новые депозиты будут первыми
+	// (опционально, но если могут накопиться старые депозиты с статусом 4, то лучше сортировать по убыванию)
+    $items = Transactions::findWhere('WHERE status=4 ORDER BY id DESC');
+    file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Получено ".count($items)." items из базы\n", FILE_APPEND);
+    if(!empty($items)) {
+        $sett = Web3Settings::findById(1);
+
+        $provider = $sett->provider; // Alchemy RPC URL
+        $contractAddress = $sett->contractAddress; // Адрес контракта
+        $abi = file_get_contents(ROOT.'/priv/src/abi.json'); // ABI контракта
+
+        // Создаем экземпляр Web3
+		// $options = [
+		// 	'timeout' => 10, // 10 секунд
+		// ];
+		// $web3 = new Web3($provider, null, $options);
+		$web3 = new Web3($provider);
+        // Создаем экземпляр контракта
+        $contract = new Contract($provider, $abi);
+
+        // Для каждого item получаем статус депозита из смарт-контракта
+        foreach($items as $item) {
+			try {
+				$id = $item->id;
+				file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Проверка депозита id=$id\n", FILE_APPEND);
+				$contract->at($contractAddress)->call('deposits', $id, function ($err, $deposit) use ($item, $id) {
+					if ($err !== null) {
+						$msg = date('d.m.Y H:i:s')." Ошибка при вызове deposits($id): " . $err->getMessage() . "\n";
+						file_put_contents(ROOT.'/web3_log.txt', $msg, FILE_APPEND);
+						return;
+					}
+					file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Ответ deposits($id): ".json_encode($deposit)."\n", FILE_APPEND);
+
+					// $deposit =  
+					// {
+					// 	"creator":"0x58f53f2b0988b69a7a10f5817b0587056940bbe2",
+					// 	"amount":{"value":"50750000","is_negative":false,"precision":-1,"bitmask":false,"hex":null},
+					// 	"commission":{"value":"15","is_negative":false,"precision":-1,"bitmask":false,"hex":null},
+					// 	"exist":true,
+					// 	"withdrawn":false
+					// }
+
+					// Корректно работаем с объектом $deposit или массивом
+                    if (is_array($deposit)) {
+                        $exist = array_key_exists('exist', $deposit) ? $deposit['exist'] : null;
+                        $withdrawn = array_key_exists('withdrawn', $deposit) ? $deposit['withdrawn'] : null;
+						$amount = (string)$deposit['amount'];
+						$commission = (string)$deposit['commission'];
+                    } else {
+                        $exist = property_exists($deposit, 'exist') ? $deposit->exist : null;
+                        $withdrawn = property_exists($deposit, 'withdrawn') ? $deposit->withdrawn : null;
+                        $amount = (string)$deposit->amount 
+                        $commission = (string)$deposit->commission
+                    }
+
+                    $deposit_active = ($exist === true || $exist === 1 || $exist === '1') && ($withdrawn === false || $withdrawn === 0 || $withdrawn === '0');
+
+					file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Депозит exist=$exist, withdrawn=$withdrawn, active=$deposit_active amount=$amount, commission=$commission\n", FILE_APPEND);
+
+					if ($deposit_active) {
+						file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Депозит найден и не выведен для id=$id\n", FILE_APPEND);
+						
+						// Дополнительно проверяем сумму депозита и комиссию
+						if((string)($item->deposit*1000000) == $amount && (string)$commission == (($item->proc_buyer + $item->proc_seller)*10)) {
+							file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Сумма и комиссия совпадают для id=$id\n", FILE_APPEND);
+							$item->status = 5;
+							$item->web3back = 1; //Возврат депозита
+							$item->status_date = time();
+							$item->save();
+
+							$item->currenciesIn = Currencies::findById($item->currencies_in_id);
+							$item->currenciesOut = Currencies::findById($item->currencies_out_id);
+							$item->summ = Helpers::priceSpace($item->sum2);
+							$item->summ2 = Helpers::priceSpace(round($item->sum*$item->course,2));
+
+							$mess = new TransactionsChats;
+							$mess->transaction_id = $id;
+							$mess->date = mktime(date('H'),date('i'),date('s'),date('n'),date('j'),date('Y'));
+							$mess->text = 'Продавец внес депозит.'.PHP_EOL.'<a href="/tg/transaction-options/'.$id.'">Произведите оплату</a> в размере '.$item->summ.' '.$item->currenciesIn->name;
+							$mess->file = '';
+							$mess->filename = '';
+							$mess->file_ext = '';
+							$mess->image = '';
+							$mess->user = 0;
+							$mess->seller = 0;
+							$mess->view = 0;
+							$mess->auto = 1;
+							$mess->showBuyer = 1;
+							$mess->showSeller = 0;
+							$mess->save();
+
+							$mess = new TransactionsChats;
+							$mess->transaction_id = $id;
+							$mess->date = mktime(date('H'),date('i'),date('s'),date('n'),date('j'),date('Y'));
+							$mess->text = 'Депозит внесен, ожидайте оплаты от покупателя';
+							$mess->file = '';
+							$mess->filename = '';
+							$mess->file_ext = '';
+							$mess->image = '';
+							$mess->user = 0;
+							$mess->seller = 0;
+							$mess->view = 0;
+							$mess->auto = 1;
+							$mess->showBuyer = 0;
+							$mess->showSeller = 1;
+							$mess->save();
+
+							$mess = '💸 _Продавец успешно внес депозит.'.PHP_EOL.PHP_EOL.'_*Произведите оплату по указанным реквизитам.*';
+							Telegram::mess($item->users_buy_id,$mess,$id);
+							file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Статус и сообщения обновлены для id=$id\n", FILE_APPEND);
+						} else {
+							file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Сумма или комиссия не совпадают для id=$id: amount=$amount, commission=$commission\n", FILE_APPEND);
+						}
+					} else {
+						file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Депозит не найден или уже выведен для id=$id\n", FILE_APPEND);
+					}
+				});
+			} catch (\Exception $e) {
+				$msg = date('d.m.Y H:i:s')." Ошибка при получении данных депозита: " . $e->getMessage() . "\n";
+				file_put_contents(ROOT.'/web3_log.txt', $msg, FILE_APPEND);
+			}
+        }
+    } else {
+        file_put_contents(ROOT.'/web3_log.txt', date('d.m.Y H:i:s')." Нет items со статусом 4\n", FILE_APPEND);
+    }
+}

@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useAccount, useConnect, useNetwork } from "wagmi";
-import { useDeposit, useUsdtAllowance } from "./hooks";
+import { useAccount, useConnect } from "wagmi";
+import { useSafeContract, useUsdtAllowance } from "./hooks";
 import { getQueryParam, getReadableError } from "./utils";
 import { useSwitchNetworkToSupported } from "./useSwitchNetworkToSupported";
 import logo from "./assets/logo.svg";
 import ok from "./assets/ok.svg";
 import loader from "./assets/loader.svg";
 import "./App.css";
+import {isTrustWalletBrowser} from "./utils/isTrustWalletBrowser";
 
 /* global BigInt */
 
 const DECIMALS = 6;
 const PERCENT_DEL = 1000;
 function App() {
-    const { chain } = useNetwork();
-    const { isConnected } = useAccount();
+    const { isConnected, chain } = useAccount();
     const { connect, connectors } = useConnect();
     const [error, setError] = useState();
 
@@ -23,13 +23,17 @@ function App() {
     const [fee, setFee] = useState();
     const [feePercent, setFeePercent] = useState();
     const [transactionId, setTransactionId] = useState();
+    const [logs, setLogs] = useState([]);
 
     const amountBN = useMemo(
         () => BigInt(((amountWithFee || 0) * 10 ** DECIMALS).toFixed(0)),
-        [amount]
+        [amountWithFee]
     );
 
     const currency = "USDT";
+
+    const pushLog = (type, message) =>
+        setLogs(prev => [...prev, { type, message }]);
 
     useSwitchNetworkToSupported();
     useEffect(() => {
@@ -65,23 +69,27 @@ function App() {
     const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
 
     const {
-        mutateAsync: depositAsync,
+        deposit,
+        depositTx,
+        receipt: depositData,
         isLoading: isDepositLoading,
-        data: depositData,
         isSuccess: isDepositSuccess,
-    } = useDeposit();
+        isError: isDepositError,
+    } = useSafeContract();
+
+    console.log("isDepositSuccess", isDepositSuccess, depositData);
 
     const isCompleted = useMemo(
-        () => isDepositSuccess && depositData,
+        () => isDepositSuccess && depositData.data,
         [isDepositSuccess, depositData]
     );
     const isLoading = useMemo(
-        () => approveMutation.isLoading || isDepositLoading,
+        () => approveMutation.isPending || approveMutation.isLoading || isDepositLoading,
         [approveMutation, isDepositLoading]
     );
 
     const sendConfirmationToBack = useCallback(() => {
-        const url = "https://asia.cash/helpers/web3";
+        const url = `https://asia.cash/helpers/web3?tx=${transactionId}`;
         fetch(url)
             .then((response) => {
                 if (!response.ok) {
@@ -94,12 +102,58 @@ function App() {
             .catch((error) => {
                 setError(`Транзакция выполнена. ${error}`);
             });
-    }, []);
+    }, [transactionId]);
 
-    const handleConnect = useCallback(() => {
-        setError(undefined);
-        connect({ connector: connectors[0] });
-    }, [connect, connectors]);
+    useEffect(() => {
+        if (isDepositSuccess) {
+            sendConfirmationToBack();
+        }
+    }, [isDepositSuccess, sendConfirmationToBack]);
+
+    useEffect(() => {
+        if (isDepositError) {
+            setError(getReadableError(depositData.error));
+        }
+    }, [isDepositError]);
+
+    const tryConnect = useCallback(async (c) => {
+        if (!c) return false;
+        try {
+            pushLog('INFO', 'Connection start');
+            const provider = await c.getProvider?.();
+            pushLog('INFO', 'Connection continued 1');
+            if (!provider) {
+                pushLog('ERROR', 'No provider');
+                throw new Error("no provider");
+            }
+            pushLog('INFO', 'Connection continued 2');
+            await connect({ connector: c });
+            pushLog('INFO', 'Connection finished true');
+            return true;
+        } catch (e) {
+            console.warn(`[connect fail] ${c.id}:`, e?.message || e);
+            pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
+            return false;
+        }
+    }, [connect]);
+
+    const handleConnect = async () => {
+        const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
+
+        if (await tryConnect(byId.injected)) {
+            pushLog('INFO', 'Injected wallet connected');
+            return;
+        }
+
+        if (isTrustWalletBrowser(pushLog)) {
+            pushLog('INFO', 'Trust Wallet detected → deep-link');
+            await connect({ connector: byId.trustWallet });   // WC v2
+            return;
+        }
+
+        pushLog('INFO', 'Fallback to WalletConnect QR');
+        await connect({ connector: byId.walletConnect });
+    };
 
     const handleApprove = useCallback(() => {
         setError(undefined);
@@ -107,26 +161,25 @@ function App() {
             .mutateAsync(amountBN)
             .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
             .catch((err) => setError(getReadableError(err)));
-    }, [amountBN, approveMutation]);
+    }, [amountBN, approveMutation, allowanceRequest]);
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
         if (transactionId !== undefined && amountBN !== undefined && feePercent !== undefined) {
-            depositAsync({
-                tx: BigInt(transactionId),
+            deposit({
+                id: BigInt(transactionId),
                 amount: amountBN,
                 fee: BigInt(feePercent),
-            })
-                .then(() => sendConfirmationToBack())
-                .catch((err) => setError(getReadableError(err)));
+            });
         }
-    }, [depositAsync, transactionId, amountBN, feePercent, sendConfirmationToBack]);
+    }, [deposit, transactionId, amountBN, feePercent]);
 
     const handleOpenScan = useCallback((hash) => {
         if (hash) {
             window.open(`https://polygonscan.com/tx/${hash}`, "_blank");
         }
     }, []);
+
     const handleCloseWindow = useCallback(() => {
         window.close();
     }, []);
@@ -185,7 +238,7 @@ function App() {
                                 </button>
                             ) : (
                                 <button className="app__action" onClick={handleApprove}>
-                                    {allowanceRequest.isLoading || approveMutation.isLoading ? (
+                                    {allowanceRequest.isLoading || approveMutation.isPending ? (
                                         <>Загрузка...</>
                                     ) : (
                                         <>Разрешить использование {currency}</>
@@ -244,8 +297,8 @@ function App() {
                     </button>
                 ) : null}
 
-                {depositData ? (
-                    <div className="app__notification" onClick={() => handleOpenScan(depositData)}>
+                {depositData.data ? (
+                    <div className="app__notification" onClick={() => handleOpenScan(depositTx)}>
                         <img src={ok} alt="Success icon" />
                         <div className="app__flex">
                             <div className="app__notification-label">Транзакция отправлена</div>
@@ -255,6 +308,20 @@ function App() {
                         </div>
                     </div>
                 ) : null}
+
+                <div className="app_logs">
+                    <h3 className="app_logs_h3">LOGS</h3>
+                    <div className="app_logs_body">
+                        {logs.map((log, i) => (
+                            <span
+                                key={i}
+                                className={`app_log app_log_${log.type.toLowerCase()}`}
+                            >
+                              [Type: {log.type}] {log.message}
+                            </span>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
