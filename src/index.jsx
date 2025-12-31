@@ -9,6 +9,8 @@ import "./assets/normalize.css";
 
 const queryClient = new QueryClient();
 
+// commit
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
     <React.StrictMode>
