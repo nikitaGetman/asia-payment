@@ -1,36 +1,38 @@
 export function isTrustWalletBrowser(pushLog) {
-    const log = (m) => pushLog?.("INFO", m);
+    const log = (m) => pushLog?.('INFO', m);
 
-    if (typeof window === "undefined") return false;
+    if (typeof window === 'undefined') return false;
     const w = window;
+
+    // 1) Новые версии: провайдер лежит в массиве window.ethereum.providers
+    const pickProvider = (eth) =>
+        Array.isArray(eth?.providers)
+            ? eth.providers.find((p) => p.isTrust || p.isTrustWallet)
+            : undefined;
 
     const eth = w.ethereum;
 
-    // 1) Прямые флаги (старые версии / некоторые инъекции)
+    // direct flags (старые версии / расширение)
     if (eth?.isTrust || eth?.isTrustWallet || w.trustwallet) {
-        log("Detected TrustWallet by direct flag");
+        log('Detected ethereum.isTrust*');
         return true;
     }
 
-    // 2) Мульти-провайдерная инъекция: window.ethereum.providers
-    const tw =
-        Array.isArray(eth?.providers)
-            ? eth.providers.find((p) => p?.isTrust || p?.isTrustWallet)
-            : undefined;
-
+    // multi-provider injection
+    const tw = pickProvider(eth);
     if (tw) {
-        // Важно: поднимаем Trust провайдер наверх ДО коннекта injected
-        w.ethereum = tw;
-        log("Detected Trust provider in ethereum.providers → promoted to window.ethereum");
+        w.ethereum = tw;              // «прокидываем» Trust-провайдер наверх
+        log('Detected Trust provider in ethereum.providers');
         return true;
     }
 
-    // 3) User-Agent fallback (in-app browser)
-    const ua = navigator?.userAgent ?? "";
+    // fallback по user-agent
+    const ua = navigator?.userAgent ?? '';
     if (/trust\s?wallet/i.test(ua)) {
-        log("Detected TrustWallet by UA");
+        log('Detected by UA');
         return true;
     }
 
+    log('Not TrustWallet');
     return false;
 }

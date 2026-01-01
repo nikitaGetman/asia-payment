@@ -7,13 +7,12 @@ import logo from "./assets/logo.svg";
 import ok from "./assets/ok.svg";
 import loader from "./assets/loader.svg";
 import "./App.css";
-import { isTrustWalletBrowser } from "./utils/isTrustWalletBrowser";
+import {isTrustWalletBrowser} from "./utils/isTrustWalletBrowser";
 
 /* global BigInt */
 
 const DECIMALS = 6;
 const PERCENT_DEL = 1000;
-
 function App() {
     const { isConnected, chain } = useAccount();
     const { connect, connectors } = useConnect();
@@ -34,10 +33,9 @@ function App() {
     const currency = "USDT";
 
     const pushLog = (type, message) =>
-        setLogs((prev) => [...prev, { type, message }]);
+        setLogs(prev => [...prev, { type, message }]);
 
     useSwitchNetworkToSupported();
-
     useEffect(() => {
         const queryString = window.location.search;
         const props = getQueryParam(queryString, "props");
@@ -79,11 +77,12 @@ function App() {
         isError: isDepositError,
     } = useSafeContract();
 
+    console.log("isDepositSuccess", isDepositSuccess, depositData);
+
     const isCompleted = useMemo(
         () => isDepositSuccess && depositData.data,
         [isDepositSuccess, depositData]
     );
-
     const isLoading = useMemo(
         () => approveMutation.isPending || approveMutation.isLoading || isDepositLoading,
         [approveMutation, isDepositLoading]
@@ -93,7 +92,9 @@ function App() {
         const url = `https://asia.cash/helpers/web3?tx=${transactionId}`;
         fetch(url)
             .then((response) => {
-                if (!response.ok) throw new Error("Network response was not ok");
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
             })
             .then((data) => {
                 console.log("Confirmation request sent:", data);
@@ -104,61 +105,54 @@ function App() {
     }, [transactionId]);
 
     useEffect(() => {
-        if (isDepositSuccess) sendConfirmationToBack();
+        if (isDepositSuccess) {
+            sendConfirmationToBack();
+        }
     }, [isDepositSuccess, sendConfirmationToBack]);
 
     useEffect(() => {
-        if (isDepositError) setError(getReadableError(depositData.error));
+        if (isDepositError) {
+            setError(getReadableError(depositData.error));
+        }
     }, [isDepositError]);
 
-    const tryConnect = useCallback(
-        async (c, label) => {
-            if (!c) return false;
-            try {
-                pushLog("INFO", `Connection start: ${label || c.id}`);
-                await connect({ connector: c });
-                pushLog("INFO", `Connection finished: ${label || c.id}`);
-                return true;
-            } catch (e) {
-                const msg = e?.message || String(e);
-                console.warn(`[connect fail] ${c.id}:`, msg);
-                pushLog("ERROR", `Connection error: ${c.id}: ${msg}`);
-                return false;
+    const tryConnect = useCallback(async (c) => {
+        if (!c) return false;
+        try {
+            pushLog('INFO', 'Connection start');
+            const provider = await c.getProvider?.();
+            pushLog('INFO', 'Connection continued 1');
+            if (!provider) {
+                pushLog('ERROR', 'No provider');
+                throw new Error("no provider");
             }
-        },
-        [connect]
-    );
+            pushLog('INFO', 'Connection continued 2');
+            await connect({ connector: c });
+            pushLog('INFO', 'Connection finished true');
+            return true;
+        } catch (e) {
+            console.warn(`[connect fail] ${c.id}:`, e?.message || e);
+            pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
+            return false;
+        }
+    }, [connect]);
 
     const handleConnect = async () => {
-        setError(undefined);
+        const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
 
-        const byId = Object.fromEntries(connectors.map((c) => [c.id, c]));
-        const injected = byId.injected;
-        const walletConnect = byId.walletConnect;
-        const trustWallet = byId.trustWallet;
-
-        // FIX: Trust Wallet in-app browser (Android) должен подключаться через injected,
-        // WalletConnect/deeplink оставляем только как fallback.
-        if (isTrustWalletBrowser(pushLog)) {
-            pushLog("INFO", "Trust Wallet browser detected → prefer injected");
-            if (await tryConnect(injected, "injected")) return;
-
-            // fallback: WC (в т.ч. QR/модалка)
-            if (await tryConnect(walletConnect, "walletConnect")) return;
-
-            // optional fallback: если у тебя отдельно есть trustWallet connector (WC v2/deeplink)
-            await tryConnect(trustWallet, "trustWallet");
+        if (await tryConnect(byId.injected)) {
+            pushLog('INFO', 'Injected wallet connected');
             return;
         }
 
-        // default flow
-        if (await tryConnect(injected, "injected")) return;
+        if (isTrustWalletBrowser(pushLog)) {
+            pushLog('INFO', 'Trust Wallet detected → deep-link');
+            await connect({ connector: byId.trustWallet });   // WC v2
+            return;
+        }
 
-        // WC fallback
-        if (await tryConnect(walletConnect, "walletConnect")) return;
-
-        // last fallback
-        await tryConnect(trustWallet, "trustWallet");
+        pushLog('INFO', 'Fallback to WalletConnect QR');
+        await connect({ connector: byId.walletConnect });
     };
 
     const handleApprove = useCallback(() => {
@@ -181,7 +175,9 @@ function App() {
     }, [deposit, transactionId, amountBN, feePercent]);
 
     const handleOpenScan = useCallback((hash) => {
-        if (hash) window.open(`https://polygonscan.com/tx/${hash}`, "_blank");
+        if (hash) {
+            window.open(`https://polygonscan.com/tx/${hash}`, "_blank");
+        }
     }, []);
 
     const handleCloseWindow = useCallback(() => {
@@ -314,11 +310,14 @@ function App() {
                 ) : null}
 
                 <div className="app_logs">
-                    <h3 className="app_logs_h3">LOGS TEST 1</h3>
+                    <h3 className="app_logs_h3">LOGS</h3>
                     <div className="app_logs_body">
                         {logs.map((log, i) => (
-                            <span key={i} className={`app_log app_log_${log.type.toLowerCase()}`}>
-                                [Type: {log.type}] {log.message}
+                            <span
+                                key={i}
+                                className={`app_log app_log_${log.type.toLowerCase()}`}
+                            >
+                              [Type: {log.type}] {log.message}
                             </span>
                         ))}
                     </div>
