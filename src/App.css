@@ -184,14 +184,9 @@
     }
 }
 
-.app_logs_body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.app_log {
-    color: aquamarine;
-    text-align: center;
-    font-size: 14px;
+.app__version {
+    margin-top: auto;
+    padding: 16px;
+    font-size: 11px;
+    color: #6b6b6b;
 }

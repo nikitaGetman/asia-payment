@@ -13,6 +13,8 @@ import {isTrustWalletBrowser} from "./utils/isTrustWalletBrowser";
 
 const DECIMALS = 6;
 const PERCENT_DEL = 1000;
+const APP_VERSION = "0.1.1";
+
 function App() {
     const { isConnected, chain } = useAccount();
     const { connect, connectors } = useConnect();
@@ -23,7 +25,6 @@ function App() {
     const [fee, setFee] = useState();
     const [feePercent, setFeePercent] = useState();
     const [transactionId, setTransactionId] = useState();
-    const [logs, setLogs] = useState([]);
 
     const amountBN = useMemo(
         () => BigInt(((amountWithFee || 0) * 10 ** DECIMALS).toFixed(0)),
@@ -31,9 +32,6 @@ function App() {
     );
 
     const currency = "USDT";
-
-    const pushLog = (type, message) =>
-        setLogs(prev => [...prev, { type, message }]);
 
     useSwitchNetworkToSupported();
     useEffect(() => {
@@ -67,6 +65,25 @@ function App() {
     }, []);
 
     const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
+
+    // При возврате из кошелька (dapp browser) — обновляем allowance с задержкой (нода уже применила блок)
+    useEffect(() => {
+        if (!isConnected) return;
+        const refetchAllowance = () => {
+            const delay = 600;
+            setTimeout(() => allowanceRequest.refetch(), delay);
+            setTimeout(() => allowanceRequest.refetch(), delay + 1200);
+        };
+        const onVisible = () => {
+            if (document.visibilityState === "visible") refetchAllowance();
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("focus", refetchAllowance);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisible);
+            window.removeEventListener("focus", refetchAllowance);
+        };
+    }, [isConnected, allowanceRequest.refetch]);
 
     const {
         deposit,
@@ -119,20 +136,12 @@ function App() {
     const tryConnect = useCallback(async (c) => {
         if (!c) return false;
         try {
-            pushLog('INFO', 'Connection start');
             const provider = await c.getProvider?.();
-            pushLog('INFO', 'Connection continued 1');
-            if (!provider) {
-                pushLog('ERROR', 'No provider');
-                throw new Error("no provider");
-            }
-            pushLog('INFO', 'Connection continued 2');
+            if (!provider) throw new Error("no provider");
             await connect({ connector: c });
-            pushLog('INFO', 'Connection finished true');
             return true;
         } catch (e) {
             console.warn(`[connect fail] ${c.id}:`, e?.message || e);
-            pushLog('ERROR', `Connection error: [connect fail] ${c.id}: ${e?.message || e}`);
             return false;
         }
     }, [connect]);
@@ -140,18 +149,13 @@ function App() {
     const handleConnect = async () => {
         const byId = Object.fromEntries(connectors.map(c => [c.id, c]));
 
-        if (await tryConnect(byId.injected)) {
-            pushLog('INFO', 'Injected wallet connected');
+        if (await tryConnect(byId.injected)) return;
+
+        if (isTrustWalletBrowser()) {
+            await connect({ connector: byId.trustWallet });
             return;
         }
 
-        if (isTrustWalletBrowser(pushLog)) {
-            pushLog('INFO', 'Trust Wallet detected → deep-link');
-            await connect({ connector: byId.trustWallet });   // WC v2
-            return;
-        }
-
-        pushLog('INFO', 'Fallback to WalletConnect QR');
         await connect({ connector: byId.walletConnect });
     };
 
@@ -159,9 +163,8 @@ function App() {
         setError(undefined);
         approveMutation
             .mutateAsync(amountBN)
-            .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
             .catch((err) => setError(getReadableError(err)));
-    }, [amountBN, approveMutation, allowanceRequest]);
+    }, [amountBN, approveMutation]);
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
@@ -309,19 +312,7 @@ function App() {
                     </div>
                 ) : null}
 
-                <div className="app_logs">
-                    <h3 className="app_logs_h3">LOGS</h3>
-                    <div className="app_logs_body">
-                        {logs.map((log, i) => (
-                            <span
-                                key={i}
-                                className={`app_log app_log_${log.type.toLowerCase()}`}
-                            >
-                              [Type: {log.type}] {log.message}
-                            </span>
-                        ))}
-                    </div>
-                </div>
+                <footer className="app__version">v{APP_VERSION}</footer>
             </div>
         </div>
     );

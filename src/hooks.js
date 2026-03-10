@@ -1,13 +1,12 @@
-import { useState, useCallback } from "react";
+/* global BigInt */
+import { useState, useCallback, useEffect } from "react";
 import {
     useAccount,
     useWriteContract,
     useReadContract,
     useSwitchChain,
     useWaitForTransactionReceipt,
-    useConfig,
 } from "wagmi";
-import { waitForTransactionReceipt } from "wagmi/actions";
 import { safeABI, safeAddress, usdtABI, usdtAddress } from "./abi";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -59,6 +58,8 @@ export const useSafeContract = () => {
     };
 };
 
+const APPROVE_TX_STORAGE_KEY = "asia-approve-tx";
+
 const ALLOWANCE_REQUEST = "allowance-request";
 export const useUsdtAllowance = (amount) => {
     const { address, isConnected, chain } = useAccount();
@@ -72,48 +73,73 @@ export const useUsdtAllowance = (amount) => {
     });
     const queryClient = useQueryClient();
     const { chains, switchChainAsync } = useSwitchChain();
-    const [approveTx, setApproveTx] = useState();
+    // Восстанавливаем хеш из sessionStorage (dapp-браузер может сбрасывать состояние при уходе в кошелёк)
+    const [approveTx, setApproveTxState] = useState(() => {
+        if (typeof window === "undefined") return undefined;
+        return sessionStorage.getItem(APPROVE_TX_STORAGE_KEY) || undefined;
+    });
+
+    const setApproveTx = useCallback((tx) => {
+        setApproveTxState(tx);
+        if (tx && typeof window !== "undefined") {
+            sessionStorage.setItem(APPROVE_TX_STORAGE_KEY, tx);
+        }
+    }, []);
 
     const approveReceipt = useWaitForTransactionReceipt({
-        hash: "0xb749451943b8c5c11cc6e01e5616238b2bf4e87d86a57f339ea1a43d07d36ca9",
+        hash: approveTx,
         pollingInterval: 1_000,
         confirmations: 1,
     });
-    console.log("approveReceipt", approveReceipt);
+
+    // После подтверждения approve в сети — обновляем allowance и чистим сохранённый хеш
+    useEffect(() => {
+        if (approveReceipt.isSuccess) {
+            if (typeof window !== "undefined") sessionStorage.removeItem(APPROVE_TX_STORAGE_KEY);
+            setApproveTxState(undefined);
+            allowanceRequest.refetch();
+        }
+    }, [approveReceipt.isSuccess, allowanceRequest.refetch]);
+
+    // Пока ждём подтверждения approve — периодически опрашиваем allowance (на случай долгого возврата из кошелька)
+    useEffect(() => {
+        if (!approveTx) return;
+        const interval = setInterval(() => allowanceRequest.refetch(), 2_000);
+        return () => clearInterval(interval);
+    }, [approveTx, allowanceRequest.refetch]);
 
     const approveMutation = useMutation({
         mutationFn: async (_amount) => {
-            console.log("approve", _amount, chain, chains, isConnected);
             if (!chain) {
-                console.log("switch", chains[0]);
-                const res = await switchChainAsync({ chainId: chains[0].id });
-                console.log("res", res);
+                await switchChainAsync({ chainId: chains[0].id });
             }
-            console.log("approving", usdtAddress, safeAddress, _amount);
             const tx = await write.writeContractAsync({
                 abi: usdtABI,
                 address: usdtAddress,
                 functionName: "approve",
                 args: [safeAddress, _amount],
             });
-            console.log("tx", tx);
             setApproveTx(tx);
+            return tx;
         },
         mutationKey: ["approve-mutation"],
         onSuccess: () => {
-            queryClient.invalidateQueries([ALLOWANCE_REQUEST]);
+            queryClient.invalidateQueries({ queryKey: [ALLOWANCE_REQUEST] });
         },
     });
 
     const allowance = allowanceRequest.data;
-    const hasApprove = allowanceRequest.isFetched && allowance >= amount;
+    const allowanceBN = allowance != null ? BigInt(allowance) : 0n;
+    const hasApprove = allowanceRequest.isFetched && amount != null && allowanceBN >= amount;
 
     return {
         allowanceRequest,
         approveMutation,
         approveReceipt,
+        approveTx,
 
         allowance,
+        allowanceBN,
         hasApprove,
         isLoading:
             allowanceRequest.isLoading ||
