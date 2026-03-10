@@ -68,6 +68,21 @@ function App() {
 
     const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
 
+    // При возврате из кошелька (dapp browser) — обновляем allowance, чтобы кнопка сменилась
+    useEffect(() => {
+        if (!isConnected) return;
+        const refetch = () => allowanceRequest.refetch();
+        const onVisible = () => {
+            if (document.visibilityState === "visible") refetch();
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("focus", refetch);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisible);
+            window.removeEventListener("focus", refetch);
+        };
+    }, [isConnected, allowanceRequest.refetch]);
+
     const {
         deposit,
         depositTx,
@@ -159,9 +174,8 @@ function App() {
         setError(undefined);
         approveMutation
             .mutateAsync(amountBN)
-            .then(() => setTimeout(() => allowanceRequest.refetch(), 1000))
             .catch((err) => setError(getReadableError(err)));
-    }, [amountBN, approveMutation, allowanceRequest]);
+    }, [amountBN, approveMutation]);
 
     const handleDeposit = useCallback(() => {
         setError(undefined);
