@@ -136,8 +136,10 @@ export const useUsdtAllowance = (amount) => {
         allowanceRequest,
         approveMutation,
         approveReceipt,
+        approveTx,
 
         allowance,
+        allowanceBN,
         hasApprove,
         isLoading:
             allowanceRequest.isLoading ||

