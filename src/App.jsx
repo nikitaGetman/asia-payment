@@ -66,18 +66,22 @@ function App() {
 
     const { approveMutation, hasApprove, allowanceRequest } = useUsdtAllowance(amountBN);
 
-    // При возврате из кошелька (dapp browser) — обновляем allowance, чтобы кнопка сменилась
+    // При возврате из кошелька (dapp browser) — обновляем allowance с задержкой (нода уже применила блок)
     useEffect(() => {
         if (!isConnected) return;
-        const refetch = () => allowanceRequest.refetch();
+        const refetchAllowance = () => {
+            const delay = 600;
+            setTimeout(() => allowanceRequest.refetch(), delay);
+            setTimeout(() => allowanceRequest.refetch(), delay + 1200);
+        };
         const onVisible = () => {
-            if (document.visibilityState === "visible") refetch();
+            if (document.visibilityState === "visible") refetchAllowance();
         };
         document.addEventListener("visibilitychange", onVisible);
-        window.addEventListener("focus", refetch);
+        window.addEventListener("focus", refetchAllowance);
         return () => {
             document.removeEventListener("visibilitychange", onVisible);
-            window.removeEventListener("focus", refetch);
+            window.removeEventListener("focus", refetchAllowance);
         };
     }, [isConnected, allowanceRequest.refetch]);
 

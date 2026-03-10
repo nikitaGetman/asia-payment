@@ -1,3 +1,4 @@
+/* global BigInt */
 import { useState, useCallback, useEffect } from "react";
 import {
     useAccount,
@@ -57,6 +58,8 @@ export const useSafeContract = () => {
     };
 };
 
+const APPROVE_TX_STORAGE_KEY = "asia-approve-tx";
+
 const ALLOWANCE_REQUEST = "allowance-request";
 export const useUsdtAllowance = (amount) => {
     const { address, isConnected, chain } = useAccount();
@@ -70,7 +73,18 @@ export const useUsdtAllowance = (amount) => {
     });
     const queryClient = useQueryClient();
     const { chains, switchChainAsync } = useSwitchChain();
-    const [approveTx, setApproveTx] = useState();
+    // Восстанавливаем хеш из sessionStorage (dapp-браузер может сбрасывать состояние при уходе в кошелёк)
+    const [approveTx, setApproveTxState] = useState(() => {
+        if (typeof window === "undefined") return undefined;
+        return sessionStorage.getItem(APPROVE_TX_STORAGE_KEY) || undefined;
+    });
+
+    const setApproveTx = useCallback((tx) => {
+        setApproveTxState(tx);
+        if (tx && typeof window !== "undefined") {
+            sessionStorage.setItem(APPROVE_TX_STORAGE_KEY, tx);
+        }
+    }, []);
 
     const approveReceipt = useWaitForTransactionReceipt({
         hash: approveTx,
@@ -78,12 +92,21 @@ export const useUsdtAllowance = (amount) => {
         confirmations: 1,
     });
 
-    // После подтверждения approve в сети — обновляем allowance, чтобы кнопка сменилась
+    // После подтверждения approve в сети — обновляем allowance и чистим сохранённый хеш
     useEffect(() => {
         if (approveReceipt.isSuccess) {
+            if (typeof window !== "undefined") sessionStorage.removeItem(APPROVE_TX_STORAGE_KEY);
+            setApproveTxState(undefined);
             allowanceRequest.refetch();
         }
     }, [approveReceipt.isSuccess, allowanceRequest.refetch]);
+
+    // Пока ждём подтверждения approve — периодически опрашиваем allowance (на случай долгого возврата из кошелька)
+    useEffect(() => {
+        if (!approveTx) return;
+        const interval = setInterval(() => allowanceRequest.refetch(), 2_000);
+        return () => clearInterval(interval);
+    }, [approveTx, allowanceRequest.refetch]);
 
     const approveMutation = useMutation({
         mutationFn: async (_amount) => {
@@ -106,7 +129,8 @@ export const useUsdtAllowance = (amount) => {
     });
 
     const allowance = allowanceRequest.data;
-    const hasApprove = allowanceRequest.isFetched && allowance >= amount;
+    const allowanceBN = allowance != null ? BigInt(allowance) : 0n;
+    const hasApprove = allowanceRequest.isFetched && amount != null && allowanceBN >= amount;
 
     return {
         allowanceRequest,
