@@ -38,5 +38,7 @@ export const config = createConfig({
             },
         })
     ],
-    transports: { [polygon.id]: http() },
+    transports: {
+        [polygon.id]: http('https://polygon-bor-rpc.publicnode.com', { batch: false }),
+    },
 });
